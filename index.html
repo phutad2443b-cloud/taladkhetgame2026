@@ -1,969 +1,1727 @@
 <!DOCTYPE html>
-<html lang="th" class="light">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ตลาดเขตเกมส์ 2026 - ระบบจัดการแข่งขันกีฬา</title>
-    
-    <!-- Libraries -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ตลาดเขตเกมส์ 2026 - ระบบแข่งขันกีฬากลุ่มโรงเรียนรางหวาย</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- เพิ่มไลบรารี Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Tailwind Config & Custom CSS -->
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .hide {
+            display: none !important;
+        }
+        /* Custom Scrollbar for tables */
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Kanit', 'sans-serif'] },
                     colors: {
-                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
-                        accent: { 500: '#ec4899', 600: '#db2777' }, // Pink
-                        danger: { 500: '#ef4444', 600: '#dc2626' }   // Red
+                        primary: '#1e3a8a', // Blue 900
+                        secondary: '#fbbf24', // Amber 400
+                        accent: '#ef4444', // Red 500
+                        gold: '#ffd700',
+                        silver: '#c0c0c0',
+                        bronze: '#cd7f32'
                     }
                 }
             }
         }
     </script>
-    <style>
-        body { font-family: 'Kanit', sans-serif; background-color: #f3f4f6; overflow: hidden; }
-        .dark body { background-color: #111827; }
-        
-        /* Modern Background */
-        .modern-bg {
-            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #fdf2f8 100%);
-        }
-        .dark .modern-bg {
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
-        }
-
-        /* SPA View Transitions */
-        .view-section { display: none; }
-        .view-section.active { display: block; animation: fadeIn 0.4s ease-out; }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Glassmorphism */
-        .premium-glass {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
-        .dark .premium-glass {
-            background: rgba(17, 24, 39, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        /* Banner 3D */
-        .perspective-container { perspective: 1000px; }
-        .banner-3d {
-            transform-style: preserve-3d;
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .banner-3d:hover {
-            transform: rotateX(5deg) rotateY(-5deg) translateY(-5px);
-            box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
-        }
-
-        /* Safe area for mobile */
-        @supports (padding-bottom: env(safe-area-inset-bottom)) {
-            .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem); }
-        }
-
-        /* Hide Scrollbar but keep functionality */
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
-
-        #toast-container { z-index: 9999; }
-        .loader { border-top-color: #3b82f6; animation: spinner 1.5s linear infinite; }
-        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
 </head>
-<body class="text-gray-800 dark:text-gray-200 h-screen flex flex-col modern-bg transition-colors duration-300">
+<body class="text-gray-800 antialiased flex flex-col min-h-screen">
 
-    <!-- Toast Notifications -->
-    <div id="toast-container" class="fixed top-5 right-5 flex flex-col gap-2 pointer-events-none"></div>
+    <!-- Navigation -->
+    <nav class="bg-primary text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- Logo & Brand -->
+                <div class="flex items-center cursor-pointer" onclick="navigate('home')">
+                    <div class="flex-shrink-0 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy text-secondary text-2xl"></i>
+                        <span class="font-bold text-xl tracking-tight hidden sm:block">ตลาดเขตเกมส์ <span class="text-secondary">2026</span></span>
+                        <span class="font-bold text-lg tracking-tight sm:hidden">ตลาดเขตเกมส์</span>
+                    </div>
+                </div>
 
-    <!-- Fullscreen Loader -->
-    <div id="global-loader" class="fixed inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
-        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-16 w-16 mb-4"></div>
-        <p class="text-lg font-semibold text-primary-600 dark:text-primary-400">กำลังประมวลผล...</p>
-    </div>
+                <!-- Desktop Menu -->
+                <div class="hidden md:flex items-center space-x-4">
+                    <button onclick="navigate('home')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors" data-target="home">หน้าแรก</button>
+                    <button onclick="navigate('schedule')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors" data-target="schedule">ตาราง/ผลการแข่งขัน</button>
+                    <button onclick="navigate('medals')" class="nav-btn px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors" data-target="medals">สรุปเหรียญรางวัล</button>
+                    
+                    <!-- Admin Login/Logout Button -->
+                    <div class="border-l border-blue-700 h-6 mx-2"></div>
+                    <button id="nav-login-btn" onclick="navigate('login')" class="px-4 py-2 rounded-md text-sm font-medium bg-white text-primary hover:bg-gray-100 transition-colors shadow-sm">
+                        <i class="fa-solid fa-user-lock mr-1"></i> เข้าสู่ระบบจัดการ
+                    </button>
+                    <button id="nav-admin-btn" onclick="navigate('admin-dashboard')" class="hide px-4 py-2 rounded-md text-sm font-medium bg-secondary text-primary hover:bg-yellow-500 transition-colors shadow-sm">
+                        <i class="fa-solid fa-gauge mr-1"></i> ระบบหลังบ้าน
+                    </button>
+                    <button id="nav-logout-btn" onclick="logout()" class="hide px-3 py-2 rounded-md text-sm font-medium text-red-300 hover:text-red-100 transition-colors">
+                        ออกจากระบบ
+                    </button>
+                </div>
 
-    <!-- Custom Modal -->
-    <div id="custom-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 transform scale-95 transition-transform duration-300" id="modal-content">
-            <h3 id="modal-title" class="text-xl font-bold mb-2"></h3>
-            <p id="modal-message" class="text-gray-600 dark:text-gray-400 mb-6"></p>
-            <div class="flex justify-end gap-3">
-                <button id="modal-cancel" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-300 transition">ยกเลิก</button>
-                <button id="modal-confirm" class="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition">ตกลง</button>
+                <!-- Mobile Menu Button -->
+                <div class="flex items-center md:hidden">
+                    <button id="mobile-menu-btn" class="text-gray-200 hover:text-white focus:outline-none p-2">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Main App Layout -->
-    <div class="flex h-full w-full relative overflow-hidden">
-        
-        <!-- Sidebar (Desktop) -->
-        <aside id="desktop-sidebar" class="hidden md:flex flex-col w-64 h-full premium-glass border-r border-white/20 dark:border-gray-700/50 shadow-xl z-20 transition-all duration-300">
-            <div class="p-6 flex items-center gap-3 border-b border-gray-200 dark:border-gray-700">
-                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold shadow-lg">
-                    <i data-lucide="medal" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-accent-600 dark:from-primary-400 dark:to-accent-400">ตลาดเขตเกมส์</h1>
-                    <p class="text-xs text-gray-500">Admin Panel</p>
-                </div>
-            </div>
+        <!-- Mobile Menu (Hidden by default) -->
+        <div id="mobile-menu" class="hidden md:hidden bg-blue-900 border-t border-blue-800 pb-3 pt-2">
+            <button onclick="navigate('home'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 text-base font-medium text-white hover:bg-blue-800 border-l-4 border-transparent">หน้าแรก</button>
+            <button onclick="navigate('schedule'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 text-base font-medium text-white hover:bg-blue-800 border-l-4 border-transparent">ตาราง/ผลการแข่งขัน</button>
+            <button onclick="navigate('medals'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 text-base font-medium text-white hover:bg-blue-800 border-l-4 border-transparent">สรุปเหรียญรางวัล</button>
             
-            <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="sidebar-nav">
-                <!-- Menu injected by JS -->
-            </nav>
-            
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex items-center gap-3 mb-4 px-2">
-                    <div class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                        <i data-lucide="user" class="w-4 h-4"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-medium truncate" id="sidebar-username">Admin</p>
-                        <p class="text-xs text-gray-500 truncate" id="sidebar-role">ผู้ดูแลระบบ</p>
-                    </div>
-                </div>
-                <button onclick="app.confirmLogout()" class="w-full flex items-center gap-3 px-4 py-2 text-sm font-medium text-danger-600 bg-danger-50 dark:bg-danger-900/20 rounded-xl hover:bg-danger-100 dark:hover:bg-danger-900/40 transition">
-                    <i data-lucide="log-out" class="w-4 h-4"></i> ออกจากระบบ
-                </button>
-            </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="flex-1 flex flex-col h-full relative">
-            
-            <!-- Topbar (Theme & Login toggle) -->
-            <header class="absolute top-0 right-0 p-4 z-30 flex gap-2">
-                <button onclick="app.toggleTheme()" class="p-2.5 rounded-full premium-glass hover:scale-110 transition shadow-lg text-gray-700 dark:text-gray-200">
-                    <i data-lucide="moon" id="theme-icon" class="w-5 h-5"></i>
-                </button>
-                <button id="top-login-btn" onclick="app.switchTab('login')" class="hidden md:flex px-4 py-2.5 rounded-full bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-lg text-sm font-bold text-primary-600 dark:text-primary-400 hover:bg-white transition items-center gap-2">
-                    <i data-lucide="log-in" class="w-4 h-4"></i> เข้าระบบ
-                </button>
-            </header>
-
-            <!-- Scrollable Content -->
-            <div id="content-scroll" class="flex-1 overflow-y-auto h-full pb-24 md:pb-6 relative z-10">
-                
-                <!-- 1. Guest View (Landing Page) -->
-                <section id="view-guest" class="view-section active w-full min-h-full p-4 md:p-8 flex flex-col items-center">
-                    
-                    <!-- 3D Banner -->
-                    <div class="w-full max-w-5xl mb-12 perspective-container mt-10">
-                        <div id="hero-banner" class="banner-3d w-full rounded-3xl premium-glass p-8 md:p-12 shadow-2xl relative overflow-hidden flex flex-col items-center justify-center text-center border-t border-l border-white/40">
-                            <!-- Glow effect behind -->
-                            <div class="absolute inset-0 bg-gradient-to-br from-primary-500/20 to-accent-500/20 mix-blend-overlay"></div>
-                            
-                            <div class="banner-3d-content relative z-10 space-y-6 flex flex-col items-center">
-                                <div class="inline-block p-4 bg-white/20 dark:bg-black/20 rounded-full backdrop-blur-md shadow-inner mb-2 animate-bounce">
-                                    <i data-lucide="medal" class="w-12 h-12 text-yellow-400 drop-shadow-lg"></i>
-                                </div>
-                                
-                                <h2 class="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100 tracking-wide">ยินดีต้อนรับสู่การแข่งขันกีฬากลุ่มรางหวาย ประจำปี 2569</h2>
-                                <h1 class="text-4xl sm:text-5xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 via-accent-600 to-danger-600 dark:from-primary-400 dark:via-accent-400 dark:to-danger-400 drop-shadow-sm" style="line-height: 1.2;">
-                                    "ตลาดเขตเกมส์ 2026"
-                                </h1>
-                                <p class="text-lg md:text-xl font-medium text-gray-700 dark:text-gray-300">ณ สนามโรงเรียนบ้านตลาดเขตมิตรภาพที่ 105</p>
-                                
-                                <!-- Realtime Clock -->
-                                <div class="mt-6 inline-flex items-center gap-3 px-6 py-3 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-md border border-white/50 shadow-inner">
-                                    <i data-lucide="clock" class="w-5 h-5 text-primary-600 dark:text-primary-400"></i>
-                                    <span id="realtime-clock" class="text-lg font-semibold tracking-wide">กำลังโหลดเวลา...</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="w-full max-w-5xl space-y-8">
-                        <!-- Medal Table -->
-                        <div class="premium-glass rounded-3xl p-6 md:p-8 shadow-xl relative overflow-hidden">
-                            <h3 class="text-xl md:text-2xl font-bold mb-6 text-primary-700 dark:text-primary-300 flex items-center gap-2"><i data-lucide="award" class="w-6 h-6 text-yellow-500"></i> ตารางสรุปเหรียญรางวัล</h3>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm text-left whitespace-nowrap">
-                                    <thead class="text-xs text-gray-600 dark:text-gray-300 uppercase bg-gray-100/50 dark:bg-gray-800/50 rounded-lg">
-                                        <tr>
-                                            <th class="px-4 py-3 rounded-l-lg">อันดับ</th>
-                                            <th class="px-4 py-3">โรงเรียน</th>
-                                            <th class="px-4 py-3 text-center text-yellow-600 dark:text-yellow-400"><i data-lucide="medal" class="w-4 h-4 inline"></i> ทอง</th>
-                                            <th class="px-4 py-3 text-center text-gray-500 dark:text-gray-300"><i data-lucide="medal" class="w-4 h-4 inline"></i> เงิน</th>
-                                            <th class="px-4 py-3 text-center text-amber-700 dark:text-amber-500"><i data-lucide="medal" class="w-4 h-4 inline"></i> ทองแดง</th>
-                                            <th class="px-4 py-3 text-center rounded-r-lg">รวม</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="guest-medal-tbody" class="divide-y divide-gray-200/50 dark:divide-gray-700/50">
-                                        <!-- Injected by JS -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Match Schedule -->
-                        <div class="premium-glass rounded-3xl p-6 md:p-8 shadow-xl">
-                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                                <h3 class="text-xl md:text-2xl font-bold text-primary-700 dark:text-primary-300 flex items-center gap-2"><i data-lucide="calendar" class="w-6 h-6"></i> ตารางและผลการแข่งขัน</h3>
-                                <div class="flex gap-2">
-                                    <select id="guest-filter-sport" onchange="app.renderGuestMatches()" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2">
-                                        <option value="all">ทุกชนิดกีฬา</option>
-                                    </select>
-                                    <select id="guest-filter-status" onchange="app.renderGuestMatches()" class="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block p-2">
-                                        <option value="all">สถานะทั้งหมด</option>
-                                        <option value="scheduled">รอแข่งขัน</option>
-                                        <option value="finished">เสร็จสิ้นแล้ว</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm text-left whitespace-nowrap">
-                                    <thead class="text-xs text-gray-600 dark:text-gray-300 uppercase bg-gray-100/50 dark:bg-gray-800/50">
-                                        <tr>
-                                            <th class="px-4 py-3 rounded-l-lg">วัน-เวลา</th>
-                                            <th class="px-4 py-3">กีฬา/ประเภท</th>
-                                            <th class="px-4 py-3">สถานที่</th>
-                                            <th class="px-4 py-3 text-center">การแข่งขัน</th>
-                                            <th class="px-4 py-3 text-center rounded-r-lg">สถานะ</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="guest-match-tbody" class="divide-y divide-gray-200/50 dark:divide-gray-700/50">
-                                        <!-- Injected by JS -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 2. Login View -->
-                <section id="view-login" class="view-section w-full min-h-full flex items-center justify-center p-4">
-                    <div class="w-full max-w-md premium-glass rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-                        <div class="absolute -top-20 -right-20 w-40 h-40 bg-primary-400 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
-                        <div class="absolute -bottom-20 -left-20 w-40 h-40 bg-accent-400 rounded-full mix-blend-multiply filter blur-2xl opacity-50"></div>
-                        
-                        <div class="relative z-10 flex flex-col items-center">
-                            <div class="w-16 h-16 bg-gradient-to-tr from-primary-500 to-accent-500 rounded-full flex items-center justify-center shadow-lg mb-6 text-white">
-                                <i data-lucide="shield-check" class="w-8 h-8"></i>
-                            </div>
-                            <h2 class="text-2xl font-bold text-center mb-2">ลงชื่อเข้าสู่ระบบ</h2>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 text-center mb-8">สำหรับเจ้าหน้าที่และคณะกรรมการ</p>
-                            
-                            <form id="login-form" class="w-full space-y-5" onsubmit="event.preventDefault(); app.handleLogin();">
-                                <div>
-                                    <label class="block mb-2 text-sm font-medium">ชื่อผู้ใช้งาน (Username)</label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                            <i data-lucide="user" class="w-4 h-4 text-gray-500"></i>
-                                        </div>
-                                        <input type="text" id="login-username" class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-3 outline-none transition" placeholder="กรอกชื่อผู้ใช้งาน" required>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block mb-2 text-sm font-medium">รหัสผ่าน (Password)</label>
-                                    <div class="relative">
-                                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                            <i data-lucide="lock" class="w-4 h-4 text-gray-500"></i>
-                                        </div>
-                                        <input type="password" id="login-password" class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-xl focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-3 outline-none transition" placeholder="••••••••" required>
-                                    </div>
-                                </div>
-                                <button type="submit" class="w-full text-white bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-700 hover:to-accent-700 focus:ring-4 focus:outline-none focus:ring-primary-300 font-medium rounded-xl text-sm px-5 py-3 text-center shadow-lg transform hover:-translate-y-1 transition duration-200 mt-4">
-                                    เข้าสู่ระบบ
-                                </button>
-                            </form>
-                            <button onclick="app.switchTab('guest')" class="mt-6 text-sm text-gray-500 hover:text-primary-600 dark:hover:text-primary-400 transition flex items-center gap-1">
-                                <i data-lucide="arrow-left" class="w-4 h-4"></i> กลับหน้าหลัก
-                            </button>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 3. Admin Dashboard (Control Panel) -->
-                <section id="view-dashboard" class="view-section p-4 md:p-8 max-w-6xl mx-auto">
-                    <div class="mb-8">
-                        <h2 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-accent-600">แผงควบคุมระบบ (Control Panel)</h2>
-                        <p class="text-gray-500 dark:text-gray-400 mt-2">เลือกเมนูที่ต้องการจัดการข้อมูลการแข่งขัน</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" id="admin-panel-grid">
-                        <!-- Injected by JS -->
-                    </div>
-                </section>
-
-                <!-- 4. CRUD: Sports -->
-                <section id="view-sports" class="view-section p-4 md:p-8 max-w-5xl mx-auto">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold flex items-center gap-2"><i data-lucide="trophy" class="w-6 h-6 text-primary-500"></i> จัดการชนิดกีฬา</h2>
-                        <button onclick="app.openSportModal()" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md transition flex items-center gap-2">
-                            <i data-lucide="plus" class="w-4 h-4"></i> เพิ่มกีฬา
-                        </button>
-                    </div>
-                    <div class="premium-glass rounded-3xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700/50">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm whitespace-nowrap">
-                                <thead class="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                                    <tr><th class="py-3 px-5">ชื่อกีฬา</th><th class="py-3 px-5">ระบบคิดคะแนน</th><th class="py-3 px-5 text-right">จัดการ</th></tr>
-                                </thead>
-                                <tbody id="sports-tbody" class="divide-y divide-gray-100 dark:divide-gray-700"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 5. CRUD: Matches (ตารางแข่ง/ลู่วิ่ง) -->
-                <section id="view-matches" class="view-section p-4 md:p-8 max-w-6xl mx-auto">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold flex items-center gap-2"><i data-lucide="calendar" class="w-6 h-6 text-primary-500"></i> ตารางการแข่งขัน</h2>
-                        <button onclick="app.openMatchModal()" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md transition flex items-center gap-2">
-                            <i data-lucide="plus" class="w-4 h-4"></i> สร้างรายการ
-                        </button>
-                    </div>
-                    <div class="premium-glass rounded-3xl overflow-hidden shadow-lg p-4">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm whitespace-nowrap">
-                                <thead class="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                                    <tr><th class="p-3">วันที่/เวลา</th><th class="p-3">กีฬา</th><th class="p-3">รายละเอียดการแข่งขัน/ลู่วิ่ง</th><th class="p-3">สถานที่</th><th class="p-3">สถานะ</th><th class="p-3 text-right">จัดการ</th></tr>
-                                </thead>
-                                <tbody id="matches-tbody" class="divide-y divide-gray-100 dark:divide-gray-700"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 6. CRUD: Results (บันทึกผล) -->
-                <section id="view-results" class="view-section p-4 md:p-8 max-w-6xl mx-auto">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="edit-3" class="w-6 h-6 text-primary-500"></i> บันทึกผลการแข่งขัน</h2>
-                    <div class="flex gap-2 mb-6">
-                        <button onclick="app.renderResultsTable('all')" class="px-4 py-2 rounded-xl bg-gray-200 dark:bg-gray-700 font-medium filter-btn" data-filter="all">ทั้งหมด</button>
-                        <button onclick="app.renderResultsTable('scheduled')" class="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 font-medium filter-btn" data-filter="scheduled">รอแข่ง</button>
-                        <button onclick="app.renderResultsTable('finished')" class="px-4 py-2 rounded-xl bg-white dark:bg-gray-800 font-medium filter-btn" data-filter="finished">เสร็จสิ้น</button>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="results-grid"></div>
-                </section>
-
-                <!-- 7. CRUD: Users -->
-                <section id="view-users" class="view-section p-4 md:p-8 max-w-5xl mx-auto">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-bold flex items-center gap-2"><i data-lucide="users" class="w-6 h-6 text-primary-500"></i> จัดการผู้ใช้งาน</h2>
-                        <button onclick="app.openUserModal()" class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-md transition flex items-center gap-2">
-                            <i data-lucide="user-plus" class="w-4 h-4"></i> เพิ่มผู้ใช้
-                        </button>
-                    </div>
-                    <div class="premium-glass rounded-3xl overflow-hidden shadow-lg border border-gray-100 dark:border-gray-700/50">
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm whitespace-nowrap">
-                                <thead class="bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
-                                    <tr><th class="py-3 px-4">ชื่อ-นามสกุล</th><th class="py-3 px-4">Username</th><th class="py-3 px-4 text-center">สิทธิ์ (Role)</th><th class="py-3 px-4">โรงเรียนสังกัด</th><th class="py-3 px-4 text-right">จัดการ</th></tr>
-                                </thead>
-                                <tbody id="users-tbody" class="divide-y divide-gray-100 dark:divide-gray-700"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 8. Settings (Supabase) -->
-                <section id="view-settings" class="view-section p-4 md:p-8 max-w-3xl mx-auto">
-                    <h2 class="text-2xl font-bold mb-6 flex items-center gap-2"><i data-lucide="database" class="w-6 h-6 text-primary-500"></i> ตั้งค่าฐานข้อมูล (Supabase)</h2>
-                    <div class="premium-glass rounded-3xl p-6 shadow-lg">
-                        <p class="text-sm text-gray-500 mb-6">เชื่อมต่อระบบเข้ากับ Supabase เพื่อการบันทึกข้อมูลแบบ Cloud (ถ้าไม่กรอก ระบบจะใช้หน่วยความจำจำลอง)</p>
-                        <form onsubmit="event.preventDefault(); app.saveSupabaseConfig();" class="space-y-4">
-                            <div>
-                                <label class="block mb-2 text-sm font-medium">Project URL</label>
-                                <input type="url" id="setting-db-url" class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl w-full p-3 outline-none focus:ring-2 focus:ring-primary-500" placeholder="https://xxxx.supabase.co" required>
-                            </div>
-                            <div>
-                                <label class="block mb-2 text-sm font-medium">Publishable Key (anon public)</label>
-                                <input type="text" id="setting-db-key" class="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl w-full p-3 outline-none focus:ring-2 focus:ring-primary-500" placeholder="eyJhbG..." required>
-                            </div>
-                            <div class="flex items-center gap-3 pt-4">
-                                <button type="submit" class="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-md transition">บันทึกการตั้งค่า</button>
-                                <button type="button" onclick="app.testSupabaseConnection()" class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-6 py-2.5 rounded-xl font-medium transition">ทดสอบการเชื่อมต่อ</button>
-                            </div>
-                            <div id="db-status" class="mt-4 p-3 rounded-lg text-sm font-medium hidden"></div>
-                        </form>
-                    </div>
-                </section>
-
-                <!-- Views for Athletes, Certificates, Reports are implemented similarly but kept minimal for this full output -->
-                <!-- Athletes -->
-                <section id="view-athletes" class="view-section p-4 md:p-8 max-w-6xl mx-auto">
-                    <h2 class="text-2xl font-bold mb-6">จัดการนักกีฬา</h2>
-                    <div class="p-8 text-center bg-gray-50 dark:bg-gray-800 rounded-3xl border border-dashed border-gray-300 dark:border-gray-600">
-                        <i data-lucide="users" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
-                        <p class="text-gray-500">ระบบจัดการนักกีฬา (อยู่ระหว่างการพัฒนา)</p>
-                    </div>
-                </section>
-
-                <!-- Certificates -->
-                <section id="view-certs" class="view-section p-4 md:p-8 max-w-6xl mx-auto">
-                    <h2 class="text-2xl font-bold mb-6">ออกเกียรติบัตร</h2>
-                    <div class="p-8 text-center bg-gray-50 dark:bg-gray-800 rounded-3xl border border-dashed border-gray-300 dark:border-gray-600">
-                        <i data-lucide="award" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
-                        <p class="text-gray-500">ระบบออกเกียรติบัตร (อยู่ระหว่างการพัฒนา)</p>
-                    </div>
-                </section>
-                
-                <!-- Reports -->
-                <section id="view-reports" class="view-section p-4 md:p-8 max-w-6xl mx-auto">
-                    <h2 class="text-2xl font-bold mb-6">รายงานผล (Export)</h2>
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <button onclick="app.exportExcel('medals')" class="p-6 premium-glass rounded-3xl flex flex-col items-center justify-center gap-3 hover:scale-105 transition cursor-pointer">
-                            <i data-lucide="file-spreadsheet" class="w-10 h-10 text-green-500"></i>
-                            <span class="font-bold">Export สรุปเหรียญ (Excel)</span>
-                        </button>
-                    </div>
-                </section>
-
-            </div>
-        </main>
-    </div>
-
-    <!-- Mobile Bottom Navigation -->
-    <nav id="mobile-bottom-nav" class="md:hidden fixed bottom-0 left-0 w-full premium-glass border-t border-white/20 dark:border-gray-700/50 z-40 pb-safe transition-transform duration-300">
-        <div class="flex justify-around items-center h-16">
-            <button onclick="app.switchTab('guest')" class="flex flex-col items-center justify-center w-full h-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
-                <i data-lucide="home" class="w-5 h-5 mb-1"></i><span class="text-[10px]">หน้าแรก</span>
+            <div class="border-t border-blue-800 my-2"></div>
+            <button id="mobile-login-btn" onclick="navigate('login'); toggleMobileMenu()" class="block w-full text-left px-4 py-3 text-base font-medium text-secondary hover:bg-blue-800">
+                <i class="fa-solid fa-user-lock mr-2"></i> เจ้าหน้าที่ / ฝ่ายจัดการแข่งขัน
             </button>
-            <button onclick="document.getElementById('guest-filter-sport').scrollIntoView({behavior:'smooth'})" class="flex flex-col items-center justify-center w-full h-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
-                <i data-lucide="calendar" class="w-5 h-5 mb-1"></i><span class="text-[10px]">ตารางแข่ง</span>
+            <button id="mobile-admin-btn" onclick="navigate('admin-dashboard'); toggleMobileMenu()" class="hide block w-full text-left px-4 py-3 text-base font-medium text-secondary hover:bg-blue-800">
+                <i class="fa-solid fa-gauge mr-2"></i> ระบบหลังบ้าน (Admin)
             </button>
-            
-            <!-- Dynamic Center Button (Login or Admin Menu) -->
-            <div id="mobile-nav-center" class="w-full flex justify-center -mt-5">
-                <button id="mobile-login-btn" onclick="app.switchTab('login')" class="flex items-center justify-center w-12 h-12 bg-gradient-to-tr from-primary-600 to-accent-600 rounded-full text-white shadow-lg shadow-primary-500/30">
-                    <i data-lucide="user" class="w-5 h-5"></i>
-                </button>
-                <button id="mobile-admin-toggle" onclick="app.toggleMobileAdminMenu()" class="hidden flex items-center justify-center w-12 h-12 bg-gradient-to-tr from-gray-800 to-black dark:from-white dark:to-gray-200 rounded-full text-white dark:text-black shadow-lg">
-                    <i data-lucide="grid" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <button onclick="app.toggleTheme()" class="flex flex-col items-center justify-center w-full h-full text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
-                <i data-lucide="moon" class="w-5 h-5 mb-1"></i><span class="text-[10px]">ธีม</span>
+            <button id="mobile-logout-btn" onclick="logout(); toggleMobileMenu()" class="hide block w-full text-left px-4 py-3 text-base font-medium text-red-400 hover:bg-blue-800">
+                ออกจากระบบ
             </button>
         </div>
     </nav>
 
-    <!-- Mobile Admin Grid Modal (Sliding up from bottom) -->
-    <div id="mobile-admin-menu" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[45] hidden flex-col justify-end">
-        <div class="bg-white dark:bg-gray-800 w-full rounded-t-3xl p-6 pb-24 transform translate-y-full transition-transform duration-300 ease-out" id="mobile-admin-panel">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-bold">เมนูจัดการระบบ</h3>
-                <button onclick="app.toggleMobileAdminMenu()" class="p-2 bg-gray-100 dark:bg-gray-700 rounded-full"><i data-lucide="x" class="w-4 h-4"></i></button>
-            </div>
-            <div class="grid grid-cols-3 gap-4" id="mobile-grid-container">
-                <!-- Injected by JS -->
-            </div>
-            <button onclick="app.confirmLogout()" class="mt-6 w-full py-3 rounded-xl bg-danger-50 text-danger-600 font-medium">ออกจากระบบ</button>
-        </div>
-    </div>
-
-    <!-- Modal: Form (Used for everything) -->
-    <div id="form-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] hidden items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col" id="form-modal-content">
-            <div class="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <h3 id="form-modal-title" class="text-xl font-bold"></h3>
-                <button type="button" onclick="app.closeFormModal()" class="text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 p-2 rounded-full"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
-            <div class="p-4 overflow-y-auto flex-1" id="form-modal-body">
-                <!-- Form HTML injected here -->
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // --- 1. State Management (Mock Data fallback) ---
-        const state = {
-            user: null, // Logged in user {id, name, role, school_id}
-            data: {
-                schools: [
-                    { id: 1, name: "โรงเรียนบ้านตลาดเขตมิตรภาพที่ 105" },
-                    { id: 2, name: "โรงเรียนอนุบาลพนมทวน(วัดรางหวาย)" },
-                    { id: 3, name: "โรงเรียนบ้านดอนเตาอิฐ" },
-                    { id: 4, name: "โรงเรียนบ้านหนองจอก" },
-                    { id: 5, name: "โรงเรียนบ้านโคราช" },
-                    { id: 6, name: "โรงเรียนพนมทวนพิทยาคม" }
-                ],
-                sports: [
-                    { id: 1, name: "ฟุตบอล", type: "team" },
-                    { id: 2, name: "วอลเลย์บอล", type: "team" },
-                    { id: 6, name: "กรีฑา วิ่ง (บุคคล)", type: "track" },
-                    { id: 7, name: "กรีฑา วิ่งผลัด (ทีม)", type: "relay" }
-                ],
-                matches: [
-                    { id: 1, sport_id: 1, title: "คู่เปิดสนาม", match_date: "2026-09-14", match_time: "09:00", location: "สนาม 1", school1_id: 1, school2_id: 2, status: "scheduled", score: null },
-                    { id: 2, sport_id: 6, title: "วิ่ง 100ม ชาย", match_date: "2026-09-14", match_time: "10:30", location: "ลู่วิ่ง", status: "finished", lanes: {"1":1, "2":3, "3":5, "4":2, "5":4} }
-                ],
-                results: [
-                    { id: 1, match_id: 2, school_id: 3, rank: 1, medal: "gold", points: 5 },
-                    { id: 2, match_id: 2, school_id: 1, rank: 2, medal: "silver", points: 3 },
-                    { id: 3, match_id: 2, school_id: 4, rank: 3, medal: "bronze", points: 2 }
-                ],
-                users: [
-                    { id: 1, username: "admin", password: "b4125782443", name: "ผู้ดูแลระบบ", role: "admin", school_id: null }
-                ]
-            }
-        };
-
-        // Subapase setup
-        const defaultDbUrl = 'https://tfybllypgigntfblyozg.supabase.co';
-        const defaultDbKey = 'sb_publishable_aS09rVi7Egq9u8KMxdavOQ_QG_zb9U3';
-        let appSupabase = null;
-
-        const menus = [
-            { id: 'dashboard', icon: 'grid', text: 'แผงควบคุมหลัก', roles: ['admin', 'referee'], bg: 'bg-primary-500' },
-            { id: 'matches', icon: 'calendar', text: 'ตารางการแข่งขัน', roles: ['admin', 'referee'], bg: 'bg-indigo-500' },
-            { id: 'results', icon: 'edit-3', text: 'บันทึกผลคะแนน', roles: ['admin', 'referee'], bg: 'bg-pink-500' },
-            { id: 'sports', icon: 'trophy', text: 'จัดการกีฬา', roles: ['admin'], bg: 'bg-orange-500' },
-            { id: 'athletes', icon: 'users', text: 'นักกีฬา', roles: ['admin'], bg: 'bg-blue-500' },
-            { id: 'users', icon: 'shield', text: 'ผู้ใช้งาน', roles: ['admin'], bg: 'bg-purple-500' },
-            { id: 'settings', icon: 'database', text: 'ตั้งค่าระบบ', roles: ['admin'], bg: 'bg-gray-600' },
-            { id: 'reports', icon: 'file-text', text: 'รายงาน', roles: ['admin'], bg: 'bg-green-500' }
-        ];
-
-        // --- 2. Core App Logic ---
-        const app = {
-            init() {
-                this.initSupabase();
-                this.checkTheme();
-                lucide.createIcons();
-                this.updateUIAfterAuth();
-                this.switchTab('guest'); // Start at Guest
-                this.startClock();
-            },
-
-            initSupabase() {
-                const storedUrl = localStorage.getItem('sb_url');
-                const storedKey = localStorage.getItem('sb_key');
-                
-                // Use stored keys or fallback to default
-                const url = storedUrl || defaultDbUrl;
-                const key = storedKey || defaultDbKey;
-                
-                if (url && key && typeof supabase !== 'undefined') {
-                    appSupabase = supabase.createClient(url, key);
-                }
-            },
-
-            showToast(msg, type = 'success') {
-                const colors = type === 'success' ? 'bg-green-500' : (type === 'error' ? 'bg-red-500' : 'bg-blue-500');
-                const toast = document.createElement('div');
-                toast.className = `${colors} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 transform transition-all duration-300 translate-x-full opacity-0`;
-                toast.innerHTML = `<i data-lucide="${type==='success'?'check-circle':'alert-circle'}" class="w-5 h-5"></i> <span>${msg}</span>`;
-                document.getElementById('toast-container').appendChild(toast);
-                lucide.createIcons({root: toast});
-                
-                setTimeout(() => { toast.classList.remove('translate-x-full', 'opacity-0'); }, 10);
-                setTimeout(() => {
-                    toast.classList.add('translate-x-full', 'opacity-0');
-                    setTimeout(() => toast.remove(), 300);
-                }, 3000);
-            },
-
-            showModal(title, msg, onConfirm) {
-                document.getElementById('modal-title').textContent = title;
-                document.getElementById('modal-message').textContent = msg;
-                const modal = document.getElementById('custom-modal');
-                const content = document.getElementById('modal-content');
-                
-                const cancelBtn = document.getElementById('modal-cancel');
-                const confirmBtn = document.getElementById('modal-confirm');
-                
-                const close = () => {
-                    content.classList.replace('scale-100', 'scale-95');
-                    setTimeout(() => modal.classList.replace('flex', 'hidden'), 200);
-                };
-
-                cancelBtn.onclick = close;
-                confirmBtn.onclick = () => { close(); onConfirm(); };
-                
-                modal.classList.replace('hidden', 'flex');
-                setTimeout(() => content.classList.replace('scale-95', 'scale-100'), 10);
-            },
-
-            toggleTheme() {
-                const html = document.documentElement;
-                if (html.classList.contains('dark')) {
-                    html.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                    document.querySelectorAll('#theme-icon').forEach(el => el.setAttribute('data-lucide', 'moon'));
-                } else {
-                    html.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                    document.querySelectorAll('#theme-icon').forEach(el => el.setAttribute('data-lucide', 'sun'));
-                }
-                lucide.createIcons();
-            },
-            
-            checkTheme() {
-                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                    document.querySelectorAll('#theme-icon').forEach(el => el.setAttribute('data-lucide', 'sun'));
-                }
-            },
-
-            startClock() {
-                const clockEl = document.getElementById('realtime-clock');
-                if(!clockEl) return;
-                const updateTime = () => {
-                    const now = new Date();
-                    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
-                    clockEl.textContent = now.toLocaleDateString('th-TH', options);
-                };
-                updateTime();
-                setInterval(updateTime, 1000);
-            },
-
-            // --- SPA Navigation ---
-            switchTab(tabId) {
-                // Guard Auth
-                if (tabId !== 'guest' && tabId !== 'login' && !state.user) {
-                    return this.switchTab('login');
-                }
-
-                // Hide all
-                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-                
-                // Show target
-                const targetView = document.getElementById(`view-${tabId}`);
-                if(targetView) targetView.classList.add('active');
-
-                // Render specific data
-                if (tabId === 'guest') {
-                    this.renderGuestMedals();
-                    this.renderGuestMatches();
-                } else if (tabId === 'dashboard') {
-                    this.renderAdminDashboard();
-                } else if (tabId === 'sports') {
-                    this.renderSports();
-                } else if (tabId === 'matches') {
-                    this.renderMatches();
-                } else if (tabId === 'results') {
-                    this.renderResultsTable('all');
-                } else if (tabId === 'users') {
-                    this.renderUsers();
-                } else if (tabId === 'settings') {
-                    document.getElementById('setting-db-url').value = localStorage.getItem('sb_url') || defaultDbUrl;
-                    document.getElementById('setting-db-key').value = localStorage.getItem('sb_key') || defaultDbKey;
-                }
-
-                document.getElementById('content-scroll').scrollTo(0,0);
-                lucide.createIcons();
-            },
-
-            // --- Auth Logic ---
-            handleLogin() {
-                const u = document.getElementById('login-username').value;
-                const p = document.getElementById('login-password').value;
-                
-                const user = state.data.users.find(x => x.username === u && x.password === p);
-                if (user) {
-                    state.user = { id: user.id, username: user.username, name: user.name, role: user.role };
-                    this.updateUIAfterAuth();
-                    this.showToast(`ยินดีต้อนรับ ${user.name}`);
-                    this.switchTab('dashboard');
-                    document.getElementById('login-password').value = '';
-                } else {
-                    this.showToast('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'error');
-                }
-            },
-
-            confirmLogout() {
-                this.showModal('ยืนยันการออกจากระบบ', 'คุณต้องการออกจากระบบจัดการใช่หรือไม่?', () => {
-                    state.user = null;
-                    this.updateUIAfterAuth();
-                    this.switchTab('guest');
-                    this.showToast('ออกจากระบบเรียบร้อย');
+    <!-- Main Content -->
+    <main class="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- ==================== PUBLIC VIEWS ==================== -->
+        
+        <!-- View: Home -->
+        <div id="view-home" class="view-section">
+            <!-- Hero Section -->
+            <div class="relative rounded-2xl overflow-hidden mb-8 shadow-xl bg-primary">
+                <div class="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1461896836934-ffe607ba8211?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80')] bg-cover bg-center"></div>
+                <div class="relative z-10 p-8 md:p-12 text-center text-white">
+                    <span class="inline-block py-1 px-3 rounded-full bg-secondary text-primary font-bold text-sm mb-4">การแข่งขันกีฬากลุ่มโรงเรียนรางหวาย</span>
+                    <h1 class="text-4xl md:text-5xl font-bold mb-4 text-shadow">ตลาดเขตเกมส์ 2026</h1>
                     
-                    // close mobile menu if open
-                    const p = document.getElementById('mobile-admin-panel');
-                    p.classList.remove('translate-y-0');
-                    p.classList.add('translate-y-full');
-                    setTimeout(() => { document.getElementById('mobile-admin-menu').classList.replace('flex', 'hidden'); }, 300);
-                });
-            },
+                    <!-- ส่วนแสดงเวลาแบบ Real-time -->
+                    <div id="realtime-clock" class="text-lg md:text-xl font-medium text-yellow-300 mb-6 drop-shadow-md">
+                        <!-- Populated by JS -->
+                    </div>
+                    
+                    <p class="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto mb-8">รู้แพ้ รู้ชนะ รู้อภัย สร้างความสามัคคีด้วยกีฬา ติดตามผลการแข่งขันและตารางสรุปเหรียญได้ที่นี่ตลอดทัวร์นาเมนต์</p>
+                    <div class="flex flex-wrap justify-center gap-4">
+                        <button onclick="navigate('schedule')" class="bg-white text-primary font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-gray-100 transition-transform transform hover:scale-105">
+                            <i class="fa-solid fa-calendar-days mr-2"></i> ดูตารางแข่งขัน
+                        </button>
+                        <button onclick="navigate('medals')" class="bg-transparent border-2 border-white text-white font-semibold py-3 px-6 rounded-lg hover:bg-white hover:text-primary transition-colors">
+                            <i class="fa-solid fa-medal mr-2"></i> สรุปเหรียญรางวัล
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-            updateUIAfterAuth() {
-                const isAuth = !!state.user;
+            <!-- Dashboard Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Top 3 Medals -->
+                <div class="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+                    <div class="bg-gray-50 border-b border-gray-100 p-4 flex justify-between items-center">
+                        <h2 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-crown text-secondary"></i> ผู้นำเหรียญรางวัล
+                        </h2>
+                        <button onclick="navigate('medals')" class="text-sm text-primary hover:underline">ดูทั้งหมด</button>
+                    </div>
+                    <div class="p-4 flex-grow flex flex-col justify-center gap-4" id="home-top-medals">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Live & Upcoming Matches -->
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-100 p-4 flex justify-between items-center">
+                        <h2 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                            <i class="fa-solid fa-bolt text-red-500"></i> ไฮไลท์การแข่งขันวันนี้
+                        </h2>
+                        <button onclick="navigate('schedule')" class="text-sm text-primary hover:underline">ดูทั้งหมด</button>
+                    </div>
+                    <div class="p-4" id="home-matches">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Schedule & Results -->
+        <div id="view-schedule" class="view-section hide">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">ตารางและผลการแข่งขัน</h1>
+                    <p class="text-gray-500 text-sm mt-1">อัปเดตผลคะแนนแบบเรียลไทม์จากสนามแข่งขัน</p>
+                </div>
                 
-                // Desktop Sidebar
-                document.getElementById('desktop-sidebar').style.display = isAuth ? 'flex' : 'none';
-                if(isAuth) {
-                    document.getElementById('sidebar-username').textContent = state.user.name;
-                    document.getElementById('sidebar-role').textContent = state.user.role === 'admin' ? 'ผู้ดูแลระบบ' : 'กรรมการ';
-                    this.renderSidebarMenu();
-                }
+                <!-- Filters -->
+                <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                    <select id="filter-sport" class="bg-white border border-gray-300 text-gray-700 rounded-lg focus:ring-primary focus:border-primary block w-full md:w-auto p-2.5 shadow-sm text-sm" onchange="renderSchedule()">
+                        <option value="all">กีฬาทั้งหมด</option>
+                        <option value="football">ฟุตบอล</option>
+                        <option value="volleyball">วอลเลย์บอล</option>
+                        <option value="petanque">เปตอง</option>
+                        <option value="baby_petanque">เบบี้ตอง</option>
+                        <option value="takraw">เซปักตะกร้อ</option>
+                        <option value="athletics">กรีฑา</option>
+                    </select>
+                    <select id="filter-status" class="bg-white border border-gray-300 text-gray-700 rounded-lg focus:ring-primary focus:border-primary block w-full md:w-auto p-2.5 shadow-sm text-sm" onchange="renderSchedule()">
+                        <option value="all">ทุกสถานะ</option>
+                        <option value="live">กำลังแข่งขัน (Live)</option>
+                        <option value="upcoming">รอแข่งขัน</option>
+                        <option value="finished">จบการแข่งขัน</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="space-y-4" id="schedule-container">
+                <!-- Match Cards Populated by JS -->
+            </div>
+        </div>
+
+        <!-- View: Medals Tally -->
+        <div id="view-medals" class="view-section hide">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">ตารางสรุปเหรียญรางวัล</h1>
+                <p class="text-gray-500">การจัดอันดับอย่างเป็นทางการ ตลาดเขตเกมส์ 2026</p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden mb-12">
+                <div class="table-container overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600 min-w-[600px]">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th scope="col" class="px-6 py-4 text-center w-20">อันดับ</th>
+                                <th scope="col" class="px-6 py-4">โรงเรียน</th>
+                                <th scope="col" class="px-4 py-4 text-center bg-yellow-50 text-yellow-800 font-bold w-24">
+                                    <div class="flex flex-col items-center gap-1">
+                                        <div class="w-6 h-6 rounded-full bg-gold border border-yellow-600 shadow-sm"></div>
+                                        <span>ทอง</span>
+                                    </div>
+                                </th>
+                                <th scope="col" class="px-4 py-4 text-center bg-gray-50 text-gray-800 font-bold w-24">
+                                    <div class="flex flex-col items-center gap-1">
+                                        <div class="w-6 h-6 rounded-full bg-silver border border-gray-400 shadow-sm"></div>
+                                        <span>เงิน</span>
+                                    </div>
+                                </th>
+                                <th scope="col" class="px-4 py-4 text-center bg-orange-50 text-orange-800 font-bold w-24">
+                                    <div class="flex flex-col items-center gap-1">
+                                        <div class="w-6 h-6 rounded-full bg-bronze border border-orange-600 shadow-sm"></div>
+                                        <span>ทองแดง</span>
+                                    </div>
+                                </th>
+                                <th scope="col" class="px-6 py-4 text-center bg-blue-50 text-blue-800 font-bold w-24">รวมเหรียญ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="medals-table-body" class="divide-y divide-gray-100">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Athletics Score Table -->
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-2"><i class="fa-solid fa-person-running text-accent"></i> ตารางคะแนนรวมกรีฑา</h2>
+                <p class="text-gray-500 text-sm">เกณฑ์คะแนน: ประเภททีม (7-5-3) | ประเภทบุคคล (5-3-2)</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden max-w-3xl mx-auto">
+                <div class="table-container overflow-x-auto">
+                    <table class="w-full text-sm text-left text-gray-600">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th scope="col" class="px-6 py-4 text-center w-20">อันดับ</th>
+                                <th scope="col" class="px-6 py-4">โรงเรียน</th>
+                                <th scope="col" class="px-6 py-4 text-center text-primary font-bold bg-blue-50">คะแนนรวม</th>
+                            </tr>
+                        </thead>
+                        <tbody id="athletics-score-table-body" class="divide-y divide-gray-100">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== ADMIN VIEWS ==================== -->
+        
+        <!-- View: Login -->
+        <div id="view-login" class="view-section hide max-w-md mx-auto mt-10">
+            <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-primary mb-4">
+                        <i class="fa-solid fa-lock text-2xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">เข้าสู่ระบบจัดการ</h2>
+                    <p class="text-sm text-gray-500 mt-1">สำหรับเจ้าหน้าที่และฝ่ายจัดการแข่งขัน</p>
+                </div>
                 
-                // Topbar Login button
-                const topLoginBtn = document.getElementById('top-login-btn');
-                if (topLoginBtn) {
-                    if (isAuth) {
-                        topLoginBtn.classList.add('hidden');
-                        topLoginBtn.classList.remove('md:flex');
-                    } else {
-                        topLoginBtn.classList.add('md:flex');
-                        topLoginBtn.classList.remove('hidden');
-                    }
-                }
+                <form id="login-form" onsubmit="handleLogin(event)">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="username">ชื่อผู้ใช้งาน</label>
+                        <input class="shadow-sm appearance-none border border-gray-300 rounded w-full py-2.5 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="username" type="text" placeholder="admin" required>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="password">รหัสผ่าน</label>
+                        <input class="shadow-sm appearance-none border border-gray-300 rounded w-full py-2.5 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary" id="password" type="password" placeholder="admin" required>
+                        <p class="text-xs text-gray-500 italic">* ใช้คำว่า admin ในการทดสอบระบบ</p>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <button class="bg-primary hover:bg-blue-800 text-white font-bold py-2.5 px-4 rounded w-full transition-colors shadow-md" type="submit">
+                            เข้าสู่ระบบ
+                        </button>
+                    </div>
+                    <div id="login-error" class="hidden mt-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative text-sm text-center" role="alert">
+                        <span>รหัสผ่านไม่ถูกต้อง</span>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- View: Admin Dashboard Wrap -->
+        <div id="view-admin-dashboard" class="view-section hide">
+            <div class="bg-gray-800 rounded-t-xl p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold flex items-center gap-2"><i class="fa-solid fa-cogs"></i> ระบบจัดการ (Admin)</h1>
+                    <p class="text-gray-400 text-sm">ตลาดเขตเกมส์ 2026 Management System</p>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                    <button onclick="switchAdminTab('matches')" id="tab-matches" class="admin-tab-btn bg-primary px-4 py-2 rounded text-sm font-medium whitespace-nowrap">จัดการผลการแข่งขัน</button>
+                    <button onclick="switchAdminTab('medals')" id="tab-medals" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">จัดการเหรียญรางวัล</button>
+                    <button onclick="switchAdminTab('athletes')" id="tab-athletes" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">ลงทะเบียนนักกีฬา</button>
+                    <button onclick="switchAdminTab('schools')" id="tab-schools" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">จัดการโรงเรียน</button>
+                    <button onclick="switchAdminTab('users')" id="tab-users" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">จัดการผู้ใช้งาน</button>
+                </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 border-t-0 rounded-b-xl shadow-md min-h-[500px]">
                 
-                // Mobile Nav
-                const mobileLoginBtn = document.getElementById('mobile-login-btn');
-                const mobileAdminToggle = document.getElementById('mobile-admin-toggle');
-                if (isAuth) {
-                    mobileLoginBtn.classList.add('hidden');
-                    mobileAdminToggle.classList.remove('hidden');
-                    mobileAdminToggle.classList.add('flex');
-                    this.renderMobileAdminGrid();
-                } else {
-                    mobileLoginBtn.classList.remove('hidden');
-                    mobileAdminToggle.classList.add('hidden');
-                    mobileAdminToggle.classList.remove('flex');
-                }
-            },
-
-            // --- Menus ---
-            renderSidebarMenu() {
-                const nav = document.getElementById('sidebar-nav');
-                nav.innerHTML = '';
-                menus.forEach(m => {
-                    if (m.roles.includes(state.user.role)) {
-                        nav.innerHTML += `
-                            <button onclick="app.switchTab('${m.id}')" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                                <i data-lucide="${m.icon}" class="w-5 h-5 text-gray-500"></i>
-                                <span class="font-medium">${m.text}</span>
-                            </button>
-                        `;
-                    }
-                });
-                lucide.createIcons();
-            },
-            
-            renderAdminDashboard() {
-                const grid = document.getElementById('admin-panel-grid');
-                grid.innerHTML = '';
-                menus.forEach(m => {
-                    if (m.id !== 'dashboard' && m.roles.includes(state.user.role)) {
-                        grid.innerHTML += `
-                            <button onclick="app.switchTab('${m.id}')" class="${m.bg} text-white p-6 rounded-3xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition duration-300 flex flex-col items-center justify-center gap-3">
-                                <i data-lucide="${m.icon}" class="w-10 h-10"></i>
-                                <span class="font-bold text-lg">${m.text}</span>
-                            </button>
-                        `;
-                    }
-                });
-                lucide.createIcons();
-            },
-
-            toggleMobileAdminMenu() {
-                const menu = document.getElementById('mobile-admin-menu');
-                const panel = document.getElementById('mobile-admin-panel');
-                if (menu.classList.contains('hidden')) {
-                    menu.classList.replace('hidden', 'flex');
-                    setTimeout(() => { panel.classList.remove('translate-y-full'); panel.classList.add('translate-y-0'); }, 10);
-                } else {
-                    panel.classList.remove('translate-y-0'); panel.classList.add('translate-y-full');
-                    setTimeout(() => { menu.classList.replace('flex', 'hidden'); }, 300);
-                }
-            },
-
-            renderMobileAdminGrid() {
-                const grid = document.getElementById('mobile-grid-container');
-                grid.innerHTML = '';
-                menus.forEach(m => {
-                    if (m.roles.includes(state.user.role)) {
-                        grid.innerHTML += `
-                            <button onclick="app.switchTab('${m.id}'); app.toggleMobileAdminMenu();" class="flex flex-col items-center justify-center p-3 rounded-2xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 transition">
-                                <div class="w-10 h-10 rounded-full ${m.bg} text-white flex items-center justify-center mb-2 shadow"><i data-lucide="${m.icon}" class="w-5 h-5"></i></div>
-                                <span class="text-[10px] font-medium text-center leading-tight">${m.text}</span>
-                            </button>
-                        `;
-                    }
-                });
-            },
-
-            // --- Guest Data ---
-            renderGuestMedals() {
-                const scores = {};
-                state.data.schools.forEach(s => scores[s.id] = {id:s.id, name:s.name, g:0, s:0, b:0, pts:0});
-                
-                state.data.results.forEach(r => {
-                    if(!scores[r.school_id]) return;
-                    if(r.medal === 'gold') scores[r.school_id].g++;
-                    else if(r.medal === 'silver') scores[r.school_id].s++;
-                    else if(r.medal === 'bronze') scores[r.school_id].b++;
-                    scores[r.school_id].pts += (r.points || 0);
-                });
-
-                const sorted = Object.values(scores).sort((a,b) => b.g - a.g || b.s - a.s || b.b - a.b);
-                const tbody = document.getElementById('guest-medal-tbody');
-                tbody.innerHTML = sorted.map((s, idx) => `
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800 transition">
-                        <td class="px-4 py-3 font-bold">${idx+1}</td>
-                        <td class="px-4 py-3 font-medium">${s.name}</td>
-                        <td class="px-4 py-3 text-center text-yellow-600 font-bold">${s.g}</td>
-                        <td class="px-4 py-3 text-center text-gray-500 font-bold">${s.s}</td>
-                        <td class="px-4 py-3 text-center text-amber-700 font-bold">${s.b}</td>
-                        <td class="px-4 py-3 text-center font-bold">${s.g+s.s+s.b}</td>
-                    </tr>
-                `).join('');
-            },
-
-            renderGuestMatches() {
-                const sportFilter = document.getElementById('guest-filter-sport').value;
-                const statusFilter = document.getElementById('guest-filter-status').value;
-                
-                // Populate sport filter
-                if (document.getElementById('guest-filter-sport').options.length === 1) {
-                    state.data.sports.forEach(s => {
-                        const opt = document.createElement('option');
-                        opt.value = s.id; opt.textContent = s.name;
-                        document.getElementById('guest-filter-sport').appendChild(opt);
-                    });
-                }
-
-                let filtered = state.data.matches;
-                if(sportFilter !== 'all') filtered = filtered.filter(m => m.sport_id == sportFilter);
-                if(statusFilter !== 'all') filtered = filtered.filter(m => m.status === statusFilter);
-
-                const getSchoolName = id => state.data.schools.find(x => x.id == id)?.name || '-';
-                const getSportName = id => state.data.sports.find(x => x.id == id)?.name || '-';
-
-                const tbody = document.getElementById('guest-match-tbody');
-                tbody.innerHTML = filtered.length ? filtered.map(m => {
-                    const sp = state.data.sports.find(x => x.id == m.sport_id);
-                    let matchup = '';
-                    if (sp && sp.type === 'team') {
-                        matchup = `<span class="font-bold">${getSchoolName(m.school1_id)}</span> vs <span class="font-bold">${getSchoolName(m.school2_id)}</span> <br> <span class="text-xs text-primary-500">ผล: ${m.score || '-'}</span>`;
-                    } else {
-                        matchup = m.title;
-                    }
-
-                    const statBadge = m.status === 'finished' 
-                        ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">เสร็จสิ้น</span>'
-                        : '<span class="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">รอแข่ง</span>';
-
-                    return `
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td class="px-4 py-3">${m.match_date} <br> <span class="text-gray-500">${m.match_time}</span></td>
-                        <td class="px-4 py-3">${getSportName(m.sport_id)}</td>
-                        <td class="px-4 py-3">${m.location}</td>
-                        <td class="px-4 py-3 text-center">${matchup}</td>
-                        <td class="px-4 py-3 text-center">${statBadge}</td>
-                    </tr>
-                `}).join('') : `<tr><td colspan="5" class="text-center py-8 text-gray-500">ไม่พบรายการแข่งขัน</td></tr>`;
-            },
-
-            // --- Form Modals ---
-            openFormModal(title, contentHTML) {
-                document.getElementById('form-modal-title').textContent = title;
-                document.getElementById('form-modal-body').innerHTML = contentHTML;
-                document.getElementById('form-modal').classList.replace('hidden', 'flex');
-                lucide.createIcons();
-            },
-            closeFormModal() {
-                document.getElementById('form-modal').classList.replace('flex', 'hidden');
-            },
-
-            // --- CRUD Sports ---
-            renderSports() {
-                const tbody = document.getElementById('sports-tbody');
-                tbody.innerHTML = state.data.sports.map(s => {
-                    const typeName = s.type === 'team' ? 'ประเภททีม (พบกัน)' : (s.type === 'relay' ? 'กรีฑา (ทีม)' : 'กรีฑา (บุคคล)');
-                    return `
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td class="py-3 px-5 font-medium">${s.name}</td>
-                        <td class="py-3 px-5"><span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs">${typeName}</span></td>
-                        <td class="py-3 px-5 text-right">
-                            <button onclick="app.showModal('ยืนยันลบ', 'ลบกีฬา ${s.name}?', () => app.deleteSport(${s.id}))" class="p-2 text-danger-500 hover:bg-danger-50 rounded-full transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </td>
-                    </tr>
-                `}).join('');
-                lucide.createIcons();
-            },
-            openSportModal() {
-                const html = `
-                    <form onsubmit="event.preventDefault(); app.saveSport();" class="space-y-4">
-                        <div><label class="block text-sm font-medium mb-1">ชื่อกีฬา</label><input type="text" id="sp-name" class="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" required></div>
+                <!-- Admin Tab: Matches -->
+                <div id="admin-tab-matches" class="p-6 admin-tab-content">
+                    <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm flex items-start gap-3">
+                        <i class="fa-solid fa-circle-info mt-0.5 text-blue-500"></i>
                         <div>
-                            <label class="block text-sm font-medium mb-1">ประเภท</label>
-                            <select id="sp-type" class="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600">
-                                <option value="team">กีฬาประเภททีม (พบกัน/สกอร์)</option>
-                                <option value="track">กรีฑา ลู่วิ่ง (บุคคล)</option>
-                                <option value="relay">กรีฑา ลู่วิ่ง (ทีม)</option>
+                            <strong>ระบบจัดการการแข่งขัน:</strong> สามารถเพิ่ม แก้ไข ลบ ผลการแข่งขันได้ โดยแบ่งหมวดหมู่ระหว่างกีฬาทั่วไป และกรีฑา เพื่อความสะดวกในการจัดการ
+                        </div>
+                    </div>
+
+                    <!-- กีฬาทั่วไป -->
+                    <div class="mb-10">
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                            <h2 class="text-lg font-bold text-gray-800 border-l-4 border-primary pl-3 flex items-center gap-2"><i class="fa-solid fa-volleyball"></i> การแข่งขันกีฬาทั่วไป</h2>
+                            <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-medium flex items-center gap-1 transition-colors shadow-sm" onclick="openManageMatchModal('general')">
+                                <i class="fa-solid fa-plus"></i> เพิ่มแมตช์กีฬา
+                            </button>
+                        </div>
+                        <div class="table-container overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                            <table class="w-full text-sm text-left text-gray-600 min-w-[800px]">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3">วัน/เวลา</th>
+                                        <th scope="col" class="px-4 py-3">กีฬา</th>
+                                        <th scope="col" class="px-4 py-3">การแข่งขัน</th>
+                                        <th scope="col" class="px-4 py-3 text-center">สกอร์</th>
+                                        <th scope="col" class="px-4 py-3 text-center">สถานะ</th>
+                                        <th scope="col" class="px-4 py-3 text-center">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-general-matches-table-body" class="divide-y divide-gray-200">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- กรีฑา -->
+                    <div>
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                            <h2 class="text-lg font-bold text-gray-800 border-l-4 border-accent pl-3 flex items-center gap-2"><i class="fa-solid fa-person-running"></i> การแข่งขันกรีฑา</h2>
+                            <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-medium flex items-center gap-1 transition-colors shadow-sm" onclick="openManageMatchModal('athletics')">
+                                <i class="fa-solid fa-plus"></i> เพิ่มรายการกรีฑา
+                            </button>
+                        </div>
+                        <div class="table-container overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                            <table class="w-full text-sm text-left text-gray-600 min-w-[800px]">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3">วัน/เวลา</th>
+                                        <th scope="col" class="px-4 py-3">รายการ</th>
+                                        <th scope="col" class="px-4 py-3">ผู้เข้าแข่งขันหลัก (หรือสถิติ)</th>
+                                        <th scope="col" class="px-4 py-3 text-center">ผล/สกอร์</th>
+                                        <th scope="col" class="px-4 py-3 text-center">สถานะ</th>
+                                        <th scope="col" class="px-4 py-3 text-center">จัดการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-athletics-matches-table-body" class="divide-y divide-gray-200">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tab: Medals -->
+                <div id="admin-tab-medals" class="p-6 admin-tab-content hide">
+                    <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm flex items-start gap-3">
+                        <i class="fa-solid fa-circle-info mt-0.5 text-blue-500"></i>
+                        <div>
+                            <strong>คำแนะนำ:</strong> สามารถแก้ไขจำนวนเหรียญรางวัลของแต่ละโรงเรียนได้โดยตรงเมื่อมีการสรุปผลการแข่งขันรอบชิงชนะเลิศ ข้อมูลจะไปอัปเดตที่หน้าตารางสรุปเหรียญรางวัลทันที
+                        </div>
+                    </div>
+                    <div class="table-container overflow-x-auto border border-gray-200 rounded-lg">
+                        <table class="w-full text-sm text-left text-gray-600">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3">โรงเรียน</th>
+                                    <th scope="col" class="px-4 py-3 text-center">เหรียญทอง <i class="fa-solid fa-circle text-gold text-xs"></i></th>
+                                    <th scope="col" class="px-4 py-3 text-center">เหรียญเงิน <i class="fa-solid fa-circle text-silver text-xs"></i></th>
+                                    <th scope="col" class="px-4 py-3 text-center">เหรียญทองแดง <i class="fa-solid fa-circle text-bronze text-xs"></i></th>
+                                    <th scope="col" class="px-4 py-3 text-center">บันทึก</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-medals-table-body" class="divide-y divide-gray-200">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Admin Tab: Athletes -->
+                <div id="admin-tab-athletes" class="p-6 admin-tab-content hide">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-1">
+                            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-inner">
+                                <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-user-plus text-primary"></i> ลงทะเบียนนักกีฬา</h3>
+                                <form id="add-athlete-form" onsubmit="handleAddAthlete(event)">
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">ชื่อ - นามสกุล</label>
+                                        <input type="text" id="ath-name" required class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">โรงเรียนสังกัด</label>
+                                        <select id="ath-school" required class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">ชนิดกีฬาที่ลงแข่งขัน</label>
+                                        <select id="ath-sport" required class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">เพศ/รุ่น</label>
+                                        <div class="flex gap-4 mt-2">
+                                            <label class="inline-flex items-center"><input type="radio" name="ath-gender" value="ชาย" checked class="text-primary focus:ring-primary"><span class="ml-2 text-sm">ชาย</span></label>
+                                            <label class="inline-flex items-center"><input type="radio" name="ath-gender" value="หญิง" class="text-primary focus:ring-primary"><span class="ml-2 text-sm">หญิง</span></label>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="w-full bg-primary hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition-colors text-sm">
+                                        บันทึกข้อมูล
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <h3 class="font-bold text-gray-800 mb-4">รายชื่อนักกีฬาที่ลงทะเบียนล่าสุด</h3>
+                            <div class="table-container overflow-x-auto border border-gray-200 rounded-lg">
+                                <table class="w-full text-sm text-left text-gray-600">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3">ชื่อ - นามสกุล</th>
+                                            <th scope="col" class="px-4 py-3">โรงเรียน</th>
+                                            <th scope="col" class="px-4 py-3">กีฬา</th>
+                                            <th scope="col" class="px-4 py-3">รุ่น</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="athletes-table-body" class="divide-y divide-gray-200">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tab: Schools -->
+                <div id="admin-tab-schools" class="p-6 admin-tab-content hide">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div class="lg:col-span-1">
+                            <div class="bg-gray-50 p-5 rounded-xl border border-gray-200 shadow-inner">
+                                <h3 id="school-form-title" class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-school text-primary"></i> เพิ่มโรงเรียนใหม่</h3>
+                                <form id="school-form" onsubmit="handleSaveSchool(event)">
+                                    <input type="hidden" id="school-id-input">
+                                    <div class="mb-3">
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">ชื่อโรงเรียน (เต็ม)</label>
+                                        <input type="text" id="school-name-input" required placeholder="เช่น ร.ร. อนุบาลรางหวาย" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="block text-xs font-bold text-gray-700 mb-1">ชื่อย่อ (แสดงผลในตาราง)</label>
+                                        <input type="text" id="school-short-input" required placeholder="เช่น อนุบาลฯ" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button type="button" onclick="resetSchoolForm()" class="w-1/3 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded transition-colors text-sm">
+                                            ล้าง
+                                        </button>
+                                        <button type="submit" class="w-2/3 bg-primary hover:bg-blue-800 text-white font-bold py-2 px-4 rounded transition-colors text-sm shadow-sm">
+                                            บันทึกข้อมูล
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="lg:col-span-2">
+                            <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm flex items-start gap-3">
+                                <i class="fa-solid fa-circle-info mt-0.5 text-blue-500"></i>
+                                <div>
+                                    <strong>ระบบจัดการโรงเรียน:</strong> เพิ่มและแก้ไขรายชื่อโรงเรียนได้ การเปลี่ยนแปลงที่นี่จะอัปเดตไปที่ ตารางเหรียญรางวัล, ตัวเลือกจัดตารางแข่ง และข้อมูลนักกีฬาอัตโนมัติ
+                                </div>
+                            </div>
+                            <div class="table-container overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                                <table class="w-full text-sm text-left text-gray-600 min-w-[500px]">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+                                        <tr>
+                                            <th scope="col" class="px-4 py-3">ชื่อโรงเรียน</th>
+                                            <th scope="col" class="px-4 py-3">ชื่อย่อ</th>
+                                            <th scope="col" class="px-4 py-3 text-center">จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-schools-table-body" class="divide-y divide-gray-200">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Admin Tab: Users -->
+                <div id="admin-tab-users" class="p-6 admin-tab-content hide">
+                    <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800 text-sm flex items-start gap-3">
+                        <i class="fa-solid fa-circle-info mt-0.5 text-blue-500"></i>
+                        <div>
+                            <strong>ระบบจัดการผู้ใช้งาน:</strong> สามารถเพิ่ม แก้ไข และลบบัญชีผู้ใช้งานสำหรับเข้าสู่ระบบหลังบ้านได้ (ระบบป้องกันไม่ให้ลบผู้ดูแลระบบหลัก)
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                        <h2 class="text-lg font-bold text-gray-800 border-l-4 border-primary pl-3 flex items-center gap-2"><i class="fa-solid fa-users"></i> รายชื่อผู้ใช้งานระบบ</h2>
+                        <button class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-medium flex items-center gap-1 transition-colors shadow-sm" onclick="openUserModal()">
+                            <i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้งาน
+                        </button>
+                    </div>
+
+                    <div class="table-container overflow-x-auto border border-gray-200 rounded-lg shadow-sm">
+                        <table class="w-full text-sm text-left text-gray-600 min-w-[600px]">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3">ชื่อ-นามสกุล / ตำแหน่ง</th>
+                                    <th scope="col" class="px-4 py-3">ชื่อผู้ใช้งาน (Username)</th>
+                                    <th scope="col" class="px-4 py-3 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-table-body" class="divide-y divide-gray-200">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Manage Match Modal (Create/Edit) -->
+    <div id="modal-manage-match" class="fixed inset-0 z-50 flex items-center justify-center hide glass-effect overflow-y-auto pt-10 pb-10">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 border border-gray-200 overflow-hidden my-auto flex flex-col max-h-[90vh]">
+            <div class="bg-gray-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                <h3 class="font-bold text-lg" id="manage-match-title">เพิ่มรายการแข่งขัน</h3>
+                <button type="button" onclick="closeMatchModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow">
+                <form id="manage-match-form" onsubmit="handleSaveMatch(event)">
+                    <input type="hidden" id="manage-match-id">
+                    <input type="hidden" id="manage-match-category">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">วันที่แข่งขัน</label>
+                            <input type="text" id="manage-match-date" required placeholder="เช่น 10 พ.ย. 2026" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">เวลา (น.)</label>
+                            <input type="text" id="manage-match-time" required placeholder="เช่น 09:00" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">ประเภทกีฬา</label>
+                            <select id="manage-match-sport-type" required class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                <!-- Populated dynamically based on category -->
                             </select>
                         </div>
-                        <button type="submit" class="w-full py-2 bg-primary-600 text-white rounded-lg">บันทึกข้อมูล</button>
-                    </form>
-                `;
-                this.openFormModal('เพิ่มชนิดกีฬาใหม่', html);
-            },
-            saveSport() {
-                const name = document.getElementById('sp-name').value;
-                const type = document.getElementById('sp-type').value;
-                const newId = state.data.sports.length ? Math.max(...state.data.sports.map(s => s.id)) + 1 : 1;
-                state.data.sports.push({ id: newId, name, type });
-                this.closeFormModal();
-                this.renderSports();
-                this.showToast('เพิ่มกีฬาสำเร็จ');
-            },
-            deleteSport(id) {
-                state.data.sports = state.data.sports.filter(s => s.id !== id);
-                this.renderSports();
-                this.showToast('ลบสำเร็จ');
-            },
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">ชื่อรายการ / รุ่น</label>
+                            <input type="text" id="manage-match-sport-name" required placeholder="เช่น ฟุตบอลชาย หรือ วิ่ง 100ม. (ชาย)" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                        </div>
+                    </div>
 
-            // --- CRUD Database Settings ---
-            saveSupabaseConfig() {
-                const url = document.getElementById('setting-db-url').value;
-                const key = document.getElementById('setting-db-key').value;
-                localStorage.setItem('sb_url', url);
-                localStorage.setItem('sb_key', key);
-                this.initSupabase();
-                this.showToast('บันทึกการตั้งค่าแล้ว');
-            },
-            async testSupabaseConnection() {
-                const statEl = document.getElementById('db-status');
-                statEl.classList.remove('hidden', 'bg-green-100', 'text-green-700', 'bg-red-100', 'text-red-700');
-                
-                if (!appSupabase) {
-                    statEl.textContent = "กรุณาบันทึก Project URL และ Key ก่อน";
-                    statEl.classList.add('bg-red-100', 'text-red-700', 'block');
-                    return;
-                }
-                
-                try {
-                    statEl.textContent = "กำลังเชื่อมต่อ...";
-                    statEl.classList.add('bg-blue-100', 'text-blue-700', 'block');
-                    const { data, error } = await appSupabase.from('schools').select('count', { count: 'exact' });
-                    if (error) throw error;
+                    <div class="mb-4 hidden" id="manage-match-athletics-type-container">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ประเภทการแข่งขัน (เพื่อคำนวณคะแนน)</label>
+                        <select id="manage-match-athletics-type" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary bg-blue-50">
+                            <option value="individual">ประเภทบุคคล (ที่ 1 ได้ 5, ที่ 2 ได้ 3, ที่ 3 ได้ 2)</option>
+                            <option value="team">ประเภททีม (ที่ 1 ได้ 7, ที่ 2 ได้ 5, ที่ 3 ได้ 3)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">รอบการแข่งขัน</label>
+                        <input type="text" id="manage-match-round" required placeholder="เช่น รอบแรก, รอบรองชนะเลิศ, ชิงชนะเลิศ" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4" id="general-teams-container">
+                        <p class="text-sm font-bold text-gray-800 mb-3 text-center border-b pb-2">ทีมแข่งขัน / ผลคะแนน (ถ้ามี)</p>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-gray-700 mb-1">ทีม A / โรงเรียนที่ 1</label>
+                                <select id="manage-match-teamA" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                    <!-- Populated by JS -->
+                                </select>
+                                <input type="number" id="manage-match-scoreA" placeholder="คะแนน/สถิติ" class="w-full mt-2 border-gray-300 rounded shadow-sm py-2 px-3 text-sm text-center font-bold focus:ring-primary focus:border-primary">
+                            </div>
+                            <div class="hidden md:block text-center font-bold text-gray-400">VS</div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-bold text-gray-700 mb-1">ทีม B / โรงเรียนที่ 2</label>
+                                <select id="manage-match-teamB" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                                    <!-- Populated by JS -->
+                                </select>
+                                <input type="number" id="manage-match-scoreB" placeholder="คะแนน/สถิติ" class="w-full mt-2 border-gray-300 rounded shadow-sm py-2 px-3 text-sm text-center font-bold focus:ring-primary focus:border-primary">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4 hidden" id="athletics-lanes-container">
+                        <p class="text-sm font-bold text-gray-800 mb-3 text-center border-b pb-2">จัดลู่วิ่ง / ผลการแข่งขัน (อันดับ/สถิติ)</p>
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-12 text-center font-bold text-sm text-gray-600 bg-gray-200 rounded py-1">ลู่ 1</div>
+                                <select id="manage-match-lane1" class="flex-grow border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary"></select>
+                                <select id="manage-match-rank1" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary bg-yellow-50">
+                                    <option value="">อันดับ...</option>
+                                    <option value="1">ที่ 1</option>
+                                    <option value="2">ที่ 2</option>
+                                    <option value="3">ที่ 3</option>
+                                    <option value="0">ไม่ได้อันดับ</option>
+                                </select>
+                                <input type="text" id="manage-match-stat1" placeholder="สถิติเวลา" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm text-center">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-12 text-center font-bold text-sm text-gray-600 bg-gray-200 rounded py-1">ลู่ 2</div>
+                                <select id="manage-match-lane2" class="flex-grow border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary"></select>
+                                <select id="manage-match-rank2" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary bg-yellow-50">
+                                    <option value="">อันดับ...</option>
+                                    <option value="1">ที่ 1</option>
+                                    <option value="2">ที่ 2</option>
+                                    <option value="3">ที่ 3</option>
+                                    <option value="0">ไม่ได้อันดับ</option>
+                                </select>
+                                <input type="text" id="manage-match-stat2" placeholder="สถิติเวลา" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm text-center">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-12 text-center font-bold text-sm text-gray-600 bg-gray-200 rounded py-1">ลู่ 3</div>
+                                <select id="manage-match-lane3" class="flex-grow border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary"></select>
+                                <select id="manage-match-rank3" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary bg-yellow-50">
+                                    <option value="">อันดับ...</option>
+                                    <option value="1">ที่ 1</option>
+                                    <option value="2">ที่ 2</option>
+                                    <option value="3">ที่ 3</option>
+                                    <option value="0">ไม่ได้อันดับ</option>
+                                </select>
+                                <input type="text" id="manage-match-stat3" placeholder="สถิติเวลา" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm text-center">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-12 text-center font-bold text-sm text-gray-600 bg-gray-200 rounded py-1">ลู่ 4</div>
+                                <select id="manage-match-lane4" class="flex-grow border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary"></select>
+                                <select id="manage-match-rank4" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary bg-yellow-50">
+                                    <option value="">อันดับ...</option>
+                                    <option value="1">ที่ 1</option>
+                                    <option value="2">ที่ 2</option>
+                                    <option value="3">ที่ 3</option>
+                                    <option value="0">ไม่ได้อันดับ</option>
+                                </select>
+                                <input type="text" id="manage-match-stat4" placeholder="สถิติเวลา" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm text-center">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-12 text-center font-bold text-sm text-gray-600 bg-gray-200 rounded py-1">ลู่ 5</div>
+                                <select id="manage-match-lane5" class="flex-grow border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary"></select>
+                                <select id="manage-match-rank5" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm focus:ring-primary focus:border-primary bg-yellow-50">
+                                    <option value="">อันดับ...</option>
+                                    <option value="1">ที่ 1</option>
+                                    <option value="2">ที่ 2</option>
+                                    <option value="3">ที่ 3</option>
+                                    <option value="0">ไม่ได้อันดับ</option>
+                                </select>
+                                <input type="text" id="manage-match-stat5" placeholder="สถิติเวลา" class="w-20 border-gray-300 rounded shadow-sm py-1.5 px-2 text-sm text-center">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">สถานะการแข่งขัน</label>
+                        <select id="manage-match-status" class="w-full border-gray-300 rounded-lg shadow-sm py-2.5 px-3 focus:ring-primary focus:border-primary">
+                            <option value="upcoming">รอแข่งขัน (Upcoming)</option>
+                            <option value="live">กำลังแข่งขัน (Live)</option>
+                            <option value="finished">จบการแข่งขัน (Finished)</option>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-3 pt-2 border-t border-gray-200">
+                        <button type="button" onclick="closeMatchModal()" class="w-1/2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm">ยกเลิก</button>
+                        <button type="submit" class="w-1/2 bg-primary hover:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-lg transition-colors shadow-md text-sm">บันทึกข้อมูล</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage User Modal -->
+    <div id="modal-manage-user" class="fixed inset-0 z-50 flex items-center justify-center hide glass-effect overflow-y-auto pt-10 pb-10">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 border border-gray-200 overflow-hidden my-auto flex flex-col">
+            <div class="bg-gray-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
+                <h3 class="font-bold text-lg" id="manage-user-title">เพิ่มผู้ใช้งาน</h3>
+                <button type="button" onclick="closeUserModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="p-6">
+                <form id="manage-user-form" onsubmit="handleSaveUser(event)">
+                    <input type="hidden" id="manage-user-id">
                     
-                    statEl.textContent = "เชื่อมต่อสำเร็จ! (Database Ready)";
-                    statEl.classList.replace('bg-blue-100', 'bg-green-100');
-                    statEl.classList.replace('text-blue-700', 'text-green-700');
-                } catch (e) {
-                    statEl.textContent = "เชื่อมต่อล้มเหลว: " + e.message;
-                    statEl.classList.replace('bg-blue-100', 'bg-red-100');
-                    statEl.classList.replace('text-blue-700', 'text-red-700');
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ชื่อ-นามสกุล / ตำแหน่ง</label>
+                        <input type="text" id="manage-user-name" required placeholder="เช่น ครูสมหมาย / ฝ่ายเทคนิค" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">ชื่อผู้ใช้งาน (Username)</label>
+                        <input type="text" id="manage-user-username" required placeholder="สำหรับใช้เข้าสู่ระบบ" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">รหัสผ่าน (Password)</label>
+                        <input type="text" id="manage-user-password" required placeholder="กำหนดรหัสผ่าน" class="w-full border-gray-300 rounded shadow-sm py-2 px-3 text-sm focus:ring-primary focus:border-primary">
+                    </div>
+
+                    <div class="flex gap-3 pt-2 border-t border-gray-200">
+                        <button type="button" onclick="closeUserModal()" class="w-1/2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2.5 px-4 rounded-lg transition-colors text-sm">ยกเลิก</button>
+                        <button type="submit" class="w-1/2 bg-primary hover:bg-blue-800 text-white font-bold py-2.5 px-4 rounded-lg transition-colors shadow-md text-sm">บันทึกข้อมูล</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message Box (Alert Alternative) -->
+    <div id="msg-box" class="fixed top-20 right-4 z-50 transition-all duration-300 transform translate-x-full opacity-0">
+        <div class="bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+            <i class="fa-solid fa-circle-check"></i>
+            <span id="msg-text">บันทึกสำเร็จ</span>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-400 py-6 text-center mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-sm">
+            <p>&copy; 2026 กลุ่มโรงเรียนรางหวาย ตลาดเขตเกมส์. All rights reserved.</p>
+            <p class="mt-1 text-xs">ระบบออกแบบสำหรับใช้งานภายในกลุ่มโรงเรียนรางหวาย</p>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. ตั้งค่าการเชื่อมต่อ SUPABASE
+        // ==========================================
+        // นำ URL และ Key จากหน้า Settings > API ของ Supabase มาใส่ที่นี่
+        const SUPABASE_URL = 'https://ykwhzhiqoiubtiyeryov.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_VaMfyoVdZtM2aRJmRlvCXw_51--Ek6o';
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // --- GLOBAL DATA (เก็บข้อมูลที่ดึงมาจากฐานข้อมูล) ---
+        let systemUsers = [];
+        let schools = [];
+        let athletes = [];
+        let matches = [];
+        const sportsList = ['ฟุตบอล', 'วอลเลย์บอล', 'เปตอง', 'เบบี้ตอง', 'เซปักตะกร้อ', 'กรีฑา'];
+
+        // ==========================================
+        // 2. ฟังก์ชันดึงข้อมูลจาก Supabase (ทำงานตอนเปิดเว็บ)
+        // ==========================================
+        async function fetchAllData() {
+            try {
+                // ดึงข้อมูลโรงเรียน
+                const { data: schoolsData } = await supabaseClient.from('schools').select('*').order('created_at', { ascending: true });
+                if(schoolsData) schools = schoolsData.map(s => ({...s, id: s.id, name: s.name, short: s.short_name, gold: s.gold, silver: s.silver, bronze: s.bronze}));
+
+                // ดึงข้อมูลการแข่งขัน
+                const { data: matchesData } = await supabaseClient.from('matches').select('*').order('date', { ascending: true }).order('time', { ascending: true });
+                if(matchesData) matches = matchesData.map(m => ({
+                    id: m.id, date: m.date, time: m.time, sportType: m.sport_type, sportName: m.sport_name,
+                    round: m.round, status: m.status, teamA: m.team_a, teamB: m.team_b, scoreA: m.score_a, scoreB: m.score_b,
+                    athleticsType: m.athletics_type, lanes: m.lanes
+                }));
+
+                // ดึงข้อมูลนักกีฬา
+                const { data: athletesData } = await supabaseClient.from('athletes').select('*').order('id', { ascending: false });
+                if(athletesData) athletes = athletesData.map(a => ({ id: a.id, name: a.name, schoolId: a.school_id, sport: a.sport, gender: a.gender }));
+
+                // ดึงข้อมูลผู้ใช้งาน
+                const { data: usersData } = await supabaseClient.from('system_users').select('*').order('id', { ascending: true });
+                if(usersData) systemUsers = usersData;
+
+                // รีเฟรชหน้าจอหลังจากโหลดข้อมูลเสร็จ
+                if (currentView === 'home') renderHome();
+                if (currentView === 'schedule') renderSchedule();
+                if (currentView === 'medals') renderMedals();
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                showMessage("เกิดข้อผิดพลาดในการเชื่อมต่อฐานข้อมูล", "error");
+            }
+        }
+
+        // --- STATE MANAGEMENT ---
+        let currentRole = 'public'; // 'public' or 'admin'
+        let currentView = 'home';
+        
+        // --- HELPERS ---
+        function getSchool(id) {
+            return schools.find(s => s.id === id) || { name: 'Unknown', short: 'Unk' };
+        }
+
+        function calculateTotalMedals(school) {
+            return school.gold + school.silver + school.bronze;
+        }
+
+        // Calculate athletics points dynamically
+        function getAthleticsScores() {
+            let scores = {};
+            schools.forEach(s => scores[s.id] = 0);
+            
+            matches.filter(m => m.sportType === 'athletics' && m.status === 'finished').forEach(m => {
+                const isTeam = m.athleticsType === 'team';
+                const ptsMap = isTeam ? {1: 7, 2: 5, 3: 3} : {1: 5, 2: 3, 3: 2};
+                
+                if (m.lanes) {
+                    m.lanes.forEach(lane => {
+                        if (lane.schoolId && lane.rank) {
+                            const r = parseInt(lane.rank);
+                            if (ptsMap[r]) {
+                                scores[lane.schoolId] += ptsMap[r];
+                            }
+                        }
+                    });
                 }
+            });
+            return scores;
+        }
+
+        function getStatusBadge(status) {
+            if (status === 'live') return '<span class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold animate-pulse"><i class="fa-solid fa-circle text-[8px] mr-1"></i> LIVE</span>';
+            if (status === 'finished') return '<span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">จบการแข่งขัน</span>';
+            return '<span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-bold">รอแข่งขัน</span>';
+        }
+
+        function showMessage(msg, type = 'success') {
+            const box = document.getElementById('msg-box');
+            const text = document.getElementById('msg-text');
+            text.innerText = msg;
+            
+            box.classList.remove('translate-x-full', 'opacity-0');
+            
+            if(type === 'error') {
+                box.children[0].classList.replace('bg-green-500', 'bg-red-500');
+                box.children[0].children[0].classList.replace('fa-circle-check', 'fa-circle-xmark');
+            } else {
+                box.children[0].classList.replace('bg-red-500', 'bg-green-500');
+                box.children[0].children[0].classList.replace('fa-circle-xmark', 'fa-circle-check');
+            }
+
+            setTimeout(() => {
+                box.classList.add('translate-x-full', 'opacity-0');
+            }, 3000);
+        }
+
+        // --- NAVIGATION & UI LOGIC ---
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        function updateNavState() {
+            // Update active state on nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.dataset.target === currentView || (currentView === 'login' && btn.dataset.target === 'home')) {
+                    btn.classList.add('bg-blue-800');
+                } else {
+                    btn.classList.remove('bg-blue-800');
+                }
+            });
+
+            // Handle Auth UI
+            const isAuth = currentRole === 'admin';
+            document.getElementById('nav-login-btn').classList.toggle('hide', isAuth);
+            document.getElementById('nav-admin-btn').classList.toggle('hide', !isAuth);
+            document.getElementById('nav-logout-btn').classList.toggle('hide', !isAuth);
+            
+            document.getElementById('mobile-login-btn').classList.toggle('hide', isAuth);
+            document.getElementById('mobile-admin-btn').classList.toggle('hide', !isAuth);
+            document.getElementById('mobile-logout-btn').classList.toggle('hide', !isAuth);
+        }
+
+        function navigate(view) {
+            // Protect admin route
+            if (view === 'admin-dashboard' && currentRole !== 'admin') {
+                view = 'login';
+            }
+
+            // Hide all sections
+            document.querySelectorAll('.view-section').forEach(el => {
+                el.classList.add('hide');
+            });
+
+            // Show target section
+            document.getElementById(`view-${view}`).classList.remove('hide');
+            currentView = view;
+            
+            // Render content based on view
+            if (view === 'home') renderHome();
+            if (view === 'schedule') renderSchedule();
+            if (view === 'medals') renderMedals();
+            if (view === 'admin-dashboard') {
+                renderAdminMatches();
+                renderAdminMedals();
+                renderAthletesForm();
+                renderAthletesTable();
+                renderAdminSchools();
+                renderAdminUsers();
+                switchAdminTab('matches');
+            }
+
+            updateNavState();
+            window.scrollTo(0, 0);
+        }
+
+        function switchAdminTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hide'));
+            // Reset tab styles
+            document.querySelectorAll('.admin-tab-btn').forEach(el => {
+                el.classList.remove('bg-primary');
+                el.classList.add('bg-gray-700', 'hover:bg-gray-600');
+            });
+            
+            // Show active
+            document.getElementById(`admin-tab-${tabName}`).classList.remove('hide');
+            document.getElementById(`tab-${tabName}`).classList.add('bg-primary');
+            document.getElementById(`tab-${tabName}`).classList.remove('bg-gray-700', 'hover:bg-gray-600');
+        }
+
+        // --- RENDERING FUNCTIONS ---
+
+        function renderHome() {
+            // 1. Top 3 Medals
+            const sorted = [...schools].sort((a, b) => {
+                if (b.gold !== a.gold) return b.gold - a.gold;
+                if (b.silver !== a.silver) return b.silver - a.silver;
+                return b.bronze - a.bronze;
+            }).slice(0, 3);
+
+            let medalsHtml = '';
+            sorted.forEach((school, index) => {
+                const colors = ['text-yellow-500', 'text-gray-400', 'text-orange-500'];
+                medalsHtml += `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <div class="font-bold text-lg w-6 text-center ${colors[index]}">#${index + 1}</div>
+                            <div class="font-semibold text-gray-800">${school.short}</div>
+                        </div>
+                        <div class="flex gap-3 text-sm">
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-[10px] text-gold"></i> ${school.gold}</span>
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-[10px] text-silver"></i> ${school.silver}</span>
+                            <span class="flex items-center gap-1"><i class="fa-solid fa-circle text-[10px] text-bronze"></i> ${school.bronze}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById('home-top-medals').innerHTML = medalsHtml;
+
+            // 2. Live / Upcoming Matches (limit to 3)
+            const activeMatches = matches.filter(m => m.status !== 'finished').slice(0, 3);
+            let matchesHtml = '';
+            
+            if(activeMatches.length === 0) {
+                matchesHtml = '<div class="text-center py-6 text-gray-500">ไม่มีการแข่งขันในขณะนี้</div>';
+            } else {
+                activeMatches.forEach(m => {
+                    const tA = getSchool(m.teamA);
+                    const tB = getSchool(m.teamB);
+                    matchesHtml += `
+                        <div class="mb-3 p-4 bg-white border border-gray-200 rounded-xl hover:shadow-md transition-shadow">
+                            <div class="flex justify-between items-center mb-3">
+                                <span class="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded"><i class="fa-regular fa-clock"></i> ${m.date} | ${m.time} น.</span>
+                                ${getStatusBadge(m.status)}
+                            </div>
+                            <div class="text-sm font-semibold text-primary mb-3 text-center">${m.sportName} - ${m.round}</div>
+                            <div class="flex justify-between items-center px-2">
+                                <div class="flex-1 text-center font-bold text-gray-800">${tA.short}</div>
+                                <div class="px-4 text-xl font-black ${m.status === 'live' ? 'text-red-600' : 'text-gray-400'}">
+                                    ${m.scoreA !== null ? m.scoreA : '-'} : ${m.scoreB !== null ? m.scoreB : '-'}
+                                </div>
+                                <div class="flex-1 text-center font-bold text-gray-800">${tB.short}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            document.getElementById('home-matches').innerHTML = matchesHtml;
+        }
+
+        function renderMedals() {
+            const tbody = document.getElementById('medals-table-body');
+            const scoreTbody = document.getElementById('athletics-score-table-body');
+            
+            // Sort: Gold DESC, Silver DESC, Bronze DESC
+            const sortedMedals = [...schools].sort((a, b) => {
+                if (b.gold !== a.gold) return b.gold - a.gold;
+                if (b.silver !== a.silver) return b.silver - a.silver;
+                return b.bronze - a.bronze;
+            });
+
+            let html = '';
+            sortedMedals.forEach((school, index) => {
+                const total = calculateTotalMedals(school);
+                let rankClass = "font-medium text-gray-900";
+                if(index === 0) rankClass = "font-bold text-yellow-600 text-lg";
+                if(index === 1) rankClass = "font-bold text-gray-500 text-lg";
+                if(index === 2) rankClass = "font-bold text-orange-500 text-lg";
+
+                html += `
+                    <tr class="bg-white hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-center ${rankClass}">${index + 1}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-800">${school.name}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-center font-bold text-gray-700 bg-yellow-50/30">${school.gold}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-center font-bold text-gray-700 bg-gray-50/30">${school.silver}</td>
+                        <td class="px-4 py-4 whitespace-nowrap text-center font-bold text-gray-700 bg-orange-50/30">${school.bronze}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-blue-700 bg-blue-50/30">${total}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+
+            // --- Render Athletics Score Table ---
+            const athScores = getAthleticsScores();
+            // Sort by athletics score DESC
+            const sortedScores = [...schools].sort((a, b) => athScores[b.id] - athScores[a.id]);
+            
+            let scoreHtml = '';
+            sortedScores.forEach((school, index) => {
+                let rankClass = "font-medium text-gray-900";
+                if(index === 0) rankClass = "font-bold text-yellow-600 text-lg";
+                else if(index === 1) rankClass = "font-bold text-gray-500 text-lg";
+                else if(index === 2) rankClass = "font-bold text-orange-500 text-lg";
+
+                scoreHtml += `
+                    <tr class="bg-white hover:bg-gray-50 transition-colors">
+                        <td class="px-6 py-4 whitespace-nowrap text-center ${rankClass}">${index + 1}</td>
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-800">${school.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center font-bold text-blue-700 bg-blue-50/30">${athScores[school.id]}</td>
+                    </tr>
+                `;
+            });
+            scoreTbody.innerHTML = scoreHtml;
+        }
+
+        function renderSchedule() {
+            const filterSport = document.getElementById('filter-sport').value;
+            const filterStatus = document.getElementById('filter-status').value;
+            
+            const container = document.getElementById('schedule-container');
+            
+            let filteredMatches = matches.filter(m => {
+                let matchSport = filterSport === 'all' || m.sportType === filterSport;
+                let matchStatus = filterStatus === 'all' || m.status === filterStatus;
+                return matchSport && matchStatus;
+            });
+
+            if(filteredMatches.length === 0) {
+                container.innerHTML = '<div class="text-center py-10 bg-white rounded-lg border border-gray-200 text-gray-500">ไม่พบข้อมูลการแข่งขันที่ตรงกับเงื่อนไข</div>';
+                return;
+            }
+
+            let html = '';
+            filteredMatches.forEach(m => {
+                let teamsScoreHtml = '';
+                
+                if (m.sportType === 'athletics') {
+                    // Athletics view: show lanes
+                    let lanesHtml = '';
+                    if (m.lanes && m.lanes.length > 0) {
+                        const isTeam = m.athleticsType === 'team';
+                        const ptsMap = isTeam ? {1: 7, 2: 5, 3: 3} : {1: 5, 2: 3, 3: 2};
+
+                        m.lanes.forEach((lane, idx) => {
+                            if(lane.schoolId) {
+                                const sc = getSchool(lane.schoolId);
+                                
+                                // Display Rank and Points if finished
+                                let rankBadge = '';
+                                if (m.status === 'finished' && lane.rank) {
+                                    const r = parseInt(lane.rank);
+                                    if(r >= 1 && r <= 3) {
+                                        const color = r===1 ? 'text-yellow-600' : (r===2 ? 'text-gray-500' : 'text-orange-500');
+                                        rankBadge = `<span class="ml-2 text-[10px] sm:text-xs font-bold ${color} bg-white px-1.5 py-0.5 rounded shadow-sm border border-gray-100">ที่ ${r} (+${ptsMap[r]} pt)</span>`;
+                                    }
+                                }
+
+                                const statText = lane.stat ? ` <span class="text-xs text-gray-500 ml-1">(${lane.stat})</span>` : '';
+
+                                lanesHtml += `
+                                    <div class="flex justify-between items-center text-sm py-1 border-b border-gray-50 last:border-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="w-5 h-5 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xs font-bold">${idx+1}</span>
+                                            <span class="font-medium text-gray-800">${sc.short}</span>
+                                            ${rankBadge}
+                                        </div>
+                                        <span class="font-bold text-primary text-xs sm:text-sm">${statText}</span>
+                                    </div>
+                                `;
+                            }
+                        });
+                    }
+                    if(!lanesHtml) lanesHtml = '<div class="text-sm text-gray-500 text-center">ยังไม่ได้จัดลู่วิ่ง</div>';
+                    
+                    teamsScoreHtml = `
+                        <div class="w-full md:w-2/4 px-2 md:px-8 bg-gray-50 p-3 rounded-lg">
+                            ${lanesHtml}
+                        </div>
+                    `;
+                } else {
+                    const tA = getSchool(m.teamA);
+                    const tB = getSchool(m.teamB);
+                    const scoreDisplay = m.status === 'upcoming' 
+                        ? '<span class="text-gray-400 font-normal text-sm">VS</span>' 
+                        : `<span class="text-2xl font-black ${m.status==='live' ? 'text-red-600' : 'text-gray-800'}">${m.scoreA !== null ? m.scoreA : '-'} - ${m.scoreB !== null ? m.scoreB : '-'}</span>`;
+
+                    teamsScoreHtml = `
+                        <div class="w-full md:w-2/4 flex justify-between items-center px-2 md:px-8">
+                            <div class="text-right flex-1">
+                                <p class="font-bold text-gray-800 text-lg sm:text-xl">${tA.short}</p>
+                            </div>
+                            <div class="px-6 text-center w-24">
+                                ${scoreDisplay}
+                            </div>
+                            <div class="text-left flex-1">
+                                <p class="font-bold text-gray-800 text-lg sm:text-xl">${tB.short}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                html += `
+                    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row items-center justify-between gap-4">
+                        <!-- Info -->
+                        <div class="w-full md:w-1/4 flex flex-col items-center md:items-start border-b md:border-b-0 md:border-r border-gray-100 pb-4 md:pb-0 md:pr-4">
+                            <span class="text-sm text-gray-500 mb-1"><i class="fa-regular fa-calendar"></i> ${m.date} | ${m.time} น.</span>
+                            <span class="font-bold text-primary">${m.sportName}</span>
+                            <div class="flex flex-wrap gap-1 mt-1 justify-center md:justify-start">
+                                <span class="text-[10px] sm:text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${m.round}</span>
+                                ${m.sportType === 'athletics' ? `<span class="text-[10px] sm:text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">${m.athleticsType === 'team' ? 'ประเภททีม' : 'ประเภทบุคคล'}</span>` : ''}
+                            </div>
+                        </div>
+                        
+                        <!-- Teams & Score / Lanes -->
+                        ${teamsScoreHtml}
+                        
+                        <!-- Status -->
+                        <div class="w-full md:w-1/4 flex justify-center md:justify-end">
+                            ${getStatusBadge(m.status)}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // --- ADMIN FUNCTIONS ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const userStr = document.getElementById('username').value;
+            const passStr = document.getElementById('password').value;
+
+            const foundUser = systemUsers.find(u => u.username === userStr && u.password === passStr);
+
+            if (foundUser) {
+                currentRole = 'admin';
+                document.getElementById('login-error').classList.add('hidden');
+                document.getElementById('login-form').reset();
+                navigate('admin-dashboard');
+                showMessage(`เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ ${foundUser.name}`);
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            currentRole = 'public';
+            navigate('home');
+            showMessage('ออกจากระบบแล้ว');
+        }
+
+        function renderAdminMatches() {
+            const generalTbody = document.getElementById('admin-general-matches-table-body');
+            const athleticsTbody = document.getElementById('admin-athletics-matches-table-body');
+            
+            let generalHtml = '';
+            let athleticsHtml = '';
+            
+            matches.forEach(m => {
+                const isAthletics = m.sportType === 'athletics';
+                
+                let teamInfo = '';
+                let scoreInfo = '';
+                
+                if (isAthletics) {
+                    let lanesDesc = [];
+                    if(m.lanes) {
+                        m.lanes.forEach((l, i) => {
+                            if(l.schoolId) lanesDesc.push(`ลู่${i+1}: ${getSchool(l.schoolId).short}`);
+                        });
+                    }
+                    teamInfo = `<div class="text-xs font-medium text-gray-700 max-w-[200px] truncate" title="${lanesDesc.join(', ')}">${lanesDesc.length > 0 ? lanesDesc.join(', ') : 'ยังไม่ได้จัดลู่วิ่ง'}</div>`;
+                    scoreInfo = `<span class="text-xs text-gray-500">-</span>`;
+                } else {
+                    const tA = getSchool(m.teamA);
+                    const tB = getSchool(m.teamB);
+                    teamInfo = `<div class="text-sm font-medium text-gray-700">${tA.short} <span class="text-gray-400 mx-1 font-normal">vs</span> ${tB.short}</div>`;
+                    scoreInfo = `<span class="font-bold text-gray-800 bg-gray-100 px-3 py-1 rounded-full">${m.scoreA !== null ? m.scoreA : '-'} : ${m.scoreB !== null ? m.scoreB : '-'}</span>`;
+                }
+
+                const rowHtml = `
+                    <tr class="bg-white hover:bg-gray-50 transition-colors border-b border-gray-100">
+                        <td class="px-4 py-3 whitespace-nowrap text-xs">
+                            <div class="font-bold text-gray-700">${m.date}</div>
+                            <div class="text-gray-500">${m.time} น.</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <div class="font-semibold text-primary text-sm">${m.sportName}</div>
+                            <div class="text-xs text-gray-500">${m.round}</div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            ${teamInfo}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                            ${scoreInfo}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                            ${getStatusBadge(m.status)}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                            <div class="flex justify-center gap-1">
+                                <button onclick="openManageMatchModal('${isAthletics ? 'athletics' : 'general'}', ${m.id})" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1.5 rounded transition-colors" title="แก้ไข">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </button>
+                                <button onclick="deleteMatch(${m.id})" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded transition-colors" title="ลบ">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                
+                if (isAthletics) {
+                    athleticsHtml += rowHtml;
+                } else {
+                    generalHtml += rowHtml;
+                }
+            });
+            
+            generalTbody.innerHTML = generalHtml || `<tr><td colspan="6" class="text-center py-6 text-gray-500">ไม่มีข้อมูลการแข่งขัน</td></tr>`;
+            athleticsTbody.innerHTML = athleticsHtml || `<tr><td colspan="6" class="text-center py-6 text-gray-500">ไม่มีข้อมูลการแข่งขัน</td></tr>`;
+        }
+
+        function openManageMatchModal(category, id = null) {
+            const modal = document.getElementById('modal-manage-match');
+            const form = document.getElementById('manage-match-form');
+            const title = document.getElementById('manage-match-title');
+            const typeSelect = document.getElementById('manage-match-sport-type');
+            const teamASelect = document.getElementById('manage-match-teamA');
+            const teamBSelect = document.getElementById('manage-match-teamB');
+            const athTypeContainer = document.getElementById('manage-match-athletics-type-container');
+            
+            form.reset();
+            document.getElementById('manage-match-id').value = id || '';
+            document.getElementById('manage-match-category').value = category;
+
+            // Toggle view for general vs athletics
+            const generalContainer = document.getElementById('general-teams-container');
+            const athleticsContainer = document.getElementById('athletics-lanes-container');
+            
+            if (category === 'athletics') {
+                generalContainer.classList.add('hidden');
+                athleticsContainer.classList.remove('hidden');
+                athTypeContainer.classList.remove('hidden');
+            } else {
+                generalContainer.classList.remove('hidden');
+                athleticsContainer.classList.add('hidden');
+                athTypeContainer.classList.add('hidden');
+            }
+            
+            // Populate Dropdowns based on Category
+            const types = category === 'athletics' 
+                ? ['athletics'] 
+                : ['football', 'volleyball', 'petanque', 'baby_petanque', 'takraw'];
+            const typeNames = category === 'athletics' 
+                ? ['กรีฑา'] 
+                : ['ฟุตบอล', 'วอลเลย์บอล', 'เปตอง', 'เบบี้ตอง', 'เซปักตะกร้อ'];
+            
+            typeSelect.innerHTML = types.map((val, i) => `<option value="${val}">${typeNames[i]}</option>`).join('');
+            
+            const schoolOptions = '<option value="">เลือกโรงเรียน...</option>' + schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            teamASelect.innerHTML = schoolOptions;
+            teamBSelect.innerHTML = schoolOptions;
+
+            // Populate Lanes 1-5
+            for(let i=1; i<=5; i++) {
+                const laneSelect = document.getElementById('manage-match-lane' + i);
+                if(laneSelect) laneSelect.innerHTML = schoolOptions;
+            }
+
+            if (id) {
+                // Edit Mode
+                title.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> แก้ไขรายการแข่งขัน';
+                const m = matches.find(x => x.id === id);
+                if (m) {
+                    document.getElementById('manage-match-date').value = m.date;
+                    document.getElementById('manage-match-time').value = m.time;
+                    document.getElementById('manage-match-sport-type').value = m.sportType;
+                    document.getElementById('manage-match-sport-name').value = m.sportName;
+                    document.getElementById('manage-match-round').value = m.round;
+                    
+                    if (category === 'athletics') {
+                        document.getElementById('manage-match-athletics-type').value = m.athleticsType || 'individual';
+                        for(let i=1; i<=5; i++) {
+                            if(m.lanes && m.lanes[i-1]) {
+                                document.getElementById('manage-match-lane' + i).value = m.lanes[i-1].schoolId || '';
+                                document.getElementById('manage-match-rank' + i).value = m.lanes[i-1].rank || '';
+                                document.getElementById('manage-match-stat' + i).value = m.lanes[i-1].stat || '';
+                            }
+                        }
+                    } else {
+                        document.getElementById('manage-match-teamA').value = m.teamA;
+                        document.getElementById('manage-match-teamB').value = m.teamB;
+                        document.getElementById('manage-match-scoreA').value = m.scoreA !== null ? m.scoreA : '';
+                        document.getElementById('manage-match-scoreB').value = m.scoreB !== null ? m.scoreB : '';
+                    }
+                    
+                    document.getElementById('manage-match-status').value = m.status;
+                }
+            } else {
+                // Create Mode
+                title.innerHTML = category === 'athletics' 
+                    ? '<i class="fa-solid fa-plus"></i> เพิ่มรายการกรีฑา' 
+                    : '<i class="fa-solid fa-plus"></i> เพิ่มแมตช์กีฬา';
+            }
+            
+            modal.classList.remove('hide');
+        }
+
+        function closeMatchModal() {
+            document.getElementById('modal-manage-match').classList.add('hide');
+        }
+
+        function handleSaveMatch(e) {
+            e.preventDefault();
+            const id = document.getElementById('manage-match-id').value;
+            const category = document.getElementById('manage-match-category').value;
+
+            let newMatch = {
+                date: document.getElementById('manage-match-date').value,
+                time: document.getElementById('manage-match-time').value,
+                sportType: document.getElementById('manage-match-sport-type').value,
+                sportName: document.getElementById('manage-match-sport-name').value,
+                round: document.getElementById('manage-match-round').value,
+                status: document.getElementById('manage-match-status').value
+            };
+
+            if (category === 'athletics') {
+                newMatch.athleticsType = document.getElementById('manage-match-athletics-type').value;
+                newMatch.lanes = [];
+                for (let i = 1; i <= 5; i++) {
+                    newMatch.lanes.push({
+                        schoolId: document.getElementById('manage-match-lane' + i).value,
+                        rank: document.getElementById('manage-match-rank' + i).value,
+                        stat: document.getElementById('manage-match-stat' + i).value
+                    });
+                }
+            } else {
+                newMatch.teamA = document.getElementById('manage-match-teamA').value;
+                newMatch.teamB = document.getElementById('manage-match-teamB').value;
+                newMatch.scoreA = document.getElementById('manage-match-scoreA').value === '' ? null : parseInt(document.getElementById('manage-match-scoreA').value);
+                newMatch.scoreB = document.getElementById('manage-match-scoreB').value === '' ? null : parseInt(document.getElementById('manage-match-scoreB').value);
+            }
+
+            if (id) {
+                // Update
+                const index = matches.findIndex(m => m.id === parseInt(id));
+                if (index !== -1) {
+                    matches[index] = { ...matches[index], ...newMatch, id: parseInt(id) };
+                    showMessage('อัปเดตข้อมูลการแข่งขันแล้ว');
+                }
+            } else {
+                // Create
+                newMatch.id = Date.now();
+                matches.push(newMatch);
+                showMessage('เพิ่มการแข่งขันใหม่แล้ว');
+            }
+
+            renderAdminMatches();
+            renderSchedule(); // update public view too
+            closeMatchModal();
+        }
+
+        function deleteMatch(id) {
+            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการแข่งขันนี้? ข้อมูลจะไม่สามารถกู้คืนได้')) {
+                matches = matches.filter(m => m.id !== id);
+                renderAdminMatches();
+                renderSchedule(); // update public view
+                showMessage('ลบรายการแข่งขันแล้ว', 'success');
+            }
+        }
+
+        function renderAdminMedals() {
+            const tbody = document.getElementById('admin-medals-table-body');
+            let html = '';
+            schools.forEach(school => {
+                html += `
+                    <tr class="bg-white border-b border-gray-100">
+                        <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-800">${school.name}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-center">
+                            <input type="number" id="gold-${school.id}" value="${school.gold}" min="0" class="w-16 border border-gray-300 rounded text-center py-1">
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-center">
+                            <input type="number" id="silver-${school.id}" value="${school.silver}" min="0" class="w-16 border border-gray-300 rounded text-center py-1">
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-center">
+                            <input type="number" id="bronze-${school.id}" value="${school.bronze}" min="0" class="w-16 border border-gray-300 rounded text-center py-1">
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-center">
+                            <button onclick="saveMedal('${school.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-semibold transition-colors">บันทึก</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function saveMedal(schoolId) {
+            const school = schools.find(s => s.id === schoolId);
+            if(school) {
+                school.gold = parseInt(document.getElementById(`gold-${schoolId}`).value) || 0;
+                school.silver = parseInt(document.getElementById(`silver-${schoolId}`).value) || 0;
+                school.bronze = parseInt(document.getElementById(`bronze-${schoolId}`).value) || 0;
+                showMessage(`บันทึกเหรียญรางวัลให้ ${school.short} แล้ว`);
+            }
+        }
+
+        function renderAthletesForm() {
+            // Populate Dropdowns
+            const schoolSelect = document.getElementById('ath-school');
+            schoolSelect.innerHTML = '<option value="">เลือกโรงเรียน...</option>' + 
+                schools.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            
+            const sportSelect = document.getElementById('ath-sport');
+            sportSelect.innerHTML = '<option value="">เลือกกีฬา...</option>' + 
+                sportsList.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        function renderAthletesTable() {
+            const tbody = document.getElementById('athletes-table-body');
+            let html = '';
+            // Show latest first
+            [...athletes].reverse().forEach(ath => {
+                html += `
+                    <tr class="bg-white border-b border-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-800">${ath.name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${getSchool(ath.schoolId).name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${ath.sport}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${ath.gender}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function handleAddAthlete(e) {
+            e.preventDefault();
+            const name = document.getElementById('ath-name').value;
+            const schoolId = document.getElementById('ath-school').value;
+            const sport = document.getElementById('ath-sport').value;
+            const gender = document.querySelector('input[name="ath-gender"]:checked').value;
+
+            athletes.push({ name, schoolId, sport, gender });
+            renderAthletesTable();
+            document.getElementById('add-athlete-form').reset();
+            showMessage('ลงทะเบียนนักกีฬาเรียบร้อยแล้ว');
+        }
+
+        // --- ADMIN SCHOOLS FUNCTIONS ---
+        function renderAdminSchools() {
+            const tbody = document.getElementById('admin-schools-table-body');
+            let html = '';
+            schools.forEach(school => {
+                html += `
+                    <tr class="bg-white border-b border-gray-50">
+                        <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-800">${school.name}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm">${school.short}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                            <button onclick="editSchool('${school.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 px-2 py-1 rounded transition-colors" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteSchool('${school.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 px-2 py-1 rounded transition-colors" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function resetSchoolForm() {
+            document.getElementById('school-form').reset();
+            document.getElementById('school-id-input').value = '';
+            document.getElementById('school-form-title').innerHTML = '<i class="fa-solid fa-school text-primary"></i> เพิ่มโรงเรียนใหม่';
+        }
+
+        function editSchool(id) {
+            const school = schools.find(s => s.id === id);
+            if(school) {
+                document.getElementById('school-id-input').value = school.id;
+                document.getElementById('school-name-input').value = school.name;
+                document.getElementById('school-short-input').value = school.short;
+                document.getElementById('school-form-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary"></i> แก้ไขข้อมูลโรงเรียน';
+            }
+        }
+
+        function deleteSchool(id) {
+            // Remove school directly and update views
+            schools = schools.filter(s => s.id !== id);
+            
+            renderAdminSchools();
+            renderAdminMedals(); // Update medals table
+            renderAthletesForm(); // Update dropdowns in athlete registration
+            
+            showMessage('ลบข้อมูลโรงเรียนเรียบร้อยแล้ว', 'success');
+        }
+
+        function handleSaveSchool(e) {
+            e.preventDefault();
+            const id = document.getElementById('school-id-input').value;
+            const name = document.getElementById('school-name-input').value;
+            const short = document.getElementById('school-short-input').value;
+
+            if (id) {
+                // Update existing
+                const index = schools.findIndex(s => s.id === id);
+                if(index !== -1) {
+                    schools[index].name = name;
+                    schools[index].short = short;
+                    showMessage('อัปเดตข้อมูลโรงเรียนเรียบร้อยแล้ว');
+                }
+            } else {
+                // Create new
+                const newId = 'S' + (Date.now()); // Generate simple unique ID
+                schools.push({ id: newId, name, short, gold: 0, silver: 0, bronze: 0 });
+                showMessage('เพิ่มโรงเรียนใหม่เข้าสู่ระบบเรียบร้อยแล้ว');
+            }
+            
+            resetSchoolForm();
+            renderAdminSchools();
+            renderAdminMedals(); 
+            renderAthletesForm(); 
+        }
+
+        // --- ADMIN USER FUNCTIONS ---
+        function renderAdminUsers() {
+            const tbody = document.getElementById('admin-users-table-body');
+            let html = '';
+            
+            systemUsers.forEach(user => {
+                const isMainAdmin = user.id === 1;
+                html += `
+                    <tr class="bg-white border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-800">
+                            ${user.name} 
+                            ${isMainAdmin ? '<span class="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-bold">Main Admin</span>' : ''}
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-600">${user.username}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-center">
+                            <button onclick="openUserModal(${user.id})" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1.5 rounded transition-colors" title="แก้ไข">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            ${!isMainAdmin ? `
+                            <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded transition-colors ml-1" title="ลบ">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function openUserModal(id = null) {
+            const modal = document.getElementById('modal-manage-user');
+            const form = document.getElementById('manage-user-form');
+            const title = document.getElementById('manage-user-title');
+            
+            form.reset();
+            document.getElementById('manage-user-id').value = id || '';
+
+            if (id) {
+                title.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> แก้ไขผู้ใช้งาน';
+                const u = systemUsers.find(x => x.id === id);
+                if (u) {
+                    document.getElementById('manage-user-name').value = u.name;
+                    document.getElementById('manage-user-username').value = u.username;
+                    document.getElementById('manage-user-password').value = u.password;
+                    
+                    // ป้องกันการแก้ไข Username ของ Main Admin
+                    if (id === 1) {
+                        document.getElementById('manage-user-username').readOnly = true;
+                        document.getElementById('manage-user-username').classList.add('bg-gray-100');
+                    } else {
+                        document.getElementById('manage-user-username').readOnly = false;
+                        document.getElementById('manage-user-username').classList.remove('bg-gray-100');
+                    }
+                }
+            } else {
+                title.innerHTML = '<i class="fa-solid fa-user-plus"></i> เพิ่มผู้ใช้งาน';
+                document.getElementById('manage-user-username').readOnly = false;
+                document.getElementById('manage-user-username').classList.remove('bg-gray-100');
+            }
+            
+            modal.classList.remove('hide');
+        }
+
+        function closeUserModal() {
+            document.getElementById('modal-manage-user').classList.add('hide');
+        }
+
+        function handleSaveUser(e) {
+            e.preventDefault();
+            const id = document.getElementById('manage-user-id').value;
+            const name = document.getElementById('manage-user-name').value;
+            const username = document.getElementById('manage-user-username').value;
+            const password = document.getElementById('manage-user-password').value;
+
+            // ตรวจสอบ Username ซ้ำ
+            const isDuplicate = systemUsers.some(u => u.username === username && u.id !== (id ? parseInt(id) : null));
+            if (isDuplicate) {
+                showMessage('ชื่อผู้ใช้งาน (Username) นี้ถูกใช้ไปแล้ว', 'error');
+                return;
+            }
+
+            if (id) {
+                // Update
+                const index = systemUsers.findIndex(u => u.id === parseInt(id));
+                if (index !== -1) {
+                    systemUsers[index] = { ...systemUsers[index], name, username, password };
+                    showMessage('อัปเดตข้อมูลผู้ใช้งานเรียบร้อยแล้ว');
+                }
+            } else {
+                // Create
+                const newId = Date.now();
+                systemUsers.push({ id: newId, name, username, password });
+                showMessage('เพิ่มผู้ใช้งานใหม่เรียบร้อยแล้ว');
+            }
+
+            renderAdminUsers();
+            closeUserModal();
+        }
+
+        function deleteUser(id) {
+            if (id === 1) {
+                showMessage('ไม่สามารถลบผู้ดูแลระบบหลักได้', 'error');
+                return;
+            }
+            if (confirm('ยืนยันการลบผู้ใช้งานนี้?')) {
+                systemUsers = systemUsers.filter(u => u.id !== id);
+                renderAdminUsers();
+                showMessage('ลบผู้ใช้งานเรียบร้อยแล้ว', 'success');
+            }
+        }
+
+        // --- INIT ---
+        window.onload = () => {
+            navigate('home');
+            initClock(); // เรียกใช้งานนาฬิกาเรียลไทม์
+            
+            // เรียกฟังก์ชันดึงข้อมูลจาก Supabase
+            if (SUPABASE_URL !== 'https://YOUR_PROJECT_ID.supabase.co') {
+                fetchAllData(); 
             }
         };
 
-        // Initialize App
-        window.onload = () => app.init();
+        function initClock() {
+            const clockEl = document.getElementById('realtime-clock');
+            if (!clockEl) return;
+
+            const updateTime = () => {
+                const now = new Date();
+                
+                // รูปแบบวันที่ภาษาไทย
+                const optionsDate = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const dateStr = now.toLocaleDateString('th-TH', optionsDate);
+                
+                // รูปแบบเวลา 24 ชั่วโมง
+                const timeStr = now.toLocaleTimeString('th-TH', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit', 
+                    hour12: false 
+                });
+                
+                clockEl.innerHTML = `<i class="fa-regular fa-clock"></i> ${dateStr} | เวลา ${timeStr} น.`;
+            };
+            
+            updateTime(); // เรียกแสดงผลครั้งแรกทันที
+            setInterval(updateTime, 1000); // อัปเดตทุกๆ 1 วินาที
+        }
+
     </script>
 </body>
 </html>
