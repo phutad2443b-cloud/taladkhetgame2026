@@ -30,6 +30,14 @@
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
         }
+        /* ซ่อน Scrollbar สำหรับเมนูแท็บแนวนอนบนมือถือ (แต่ให้เลื่อนได้ปกติ) */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
     <script>
         tailwind.config = {
@@ -84,7 +92,7 @@
 
                 <!-- Mobile Menu Button -->
                 <div class="flex items-center md:hidden">
-                    <button id="mobile-menu-btn" class="text-gray-200 hover:text-white focus:outline-none p-2">
+                    <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="text-gray-200 hover:text-white focus:outline-none p-2">
                         <i class="fa-solid fa-bars text-2xl"></i>
                     </button>
                 </div>
@@ -306,18 +314,24 @@
 
         <!-- View: Admin Dashboard Wrap -->
         <div id="view-admin-dashboard" class="view-section hide">
-            <div class="bg-gray-800 rounded-t-xl p-4 text-white flex flex-col md:flex-row justify-between items-center gap-4">
+            <!-- ส่วนหัว Admin & ปุ่มกลับหน้าแรก -->
+            <div class="bg-gray-800 rounded-t-xl p-5 md:p-6 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 class="text-2xl font-bold flex items-center gap-2"><i class="fa-solid fa-cogs"></i> ระบบจัดการ (Admin)</h1>
-                    <p class="text-gray-400 text-sm">ตลาดเขตเกมส์ 2026 Management System</p>
+                    <p class="text-gray-400 text-sm mt-1">ตลาดเขตเกมส์ 2026 Management System</p>
                 </div>
-                <div class="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-                    <button onclick="switchAdminTab('matches')" id="tab-matches" class="admin-tab-btn bg-primary px-4 py-2 rounded text-sm font-medium whitespace-nowrap">จัดการผลการแข่งขัน</button>
-                    <button onclick="switchAdminTab('medals')" id="tab-medals" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">จัดการเหรียญรางวัล</button>
-                    <button onclick="switchAdminTab('athletes')" id="tab-athletes" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">ลงทะเบียนนักกีฬา</button>
-                    <button onclick="switchAdminTab('schools')" id="tab-schools" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">จัดการโรงเรียน</button>
-                    <button onclick="switchAdminTab('users')" id="tab-users" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition">จัดการผู้ใช้งาน</button>
-                </div>
+                <button onclick="navigate('home')" class="w-full md:w-auto bg-white/10 hover:bg-white/20 text-white border border-white/20 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-house"></i> กลับสู่หน้าเว็บไซต์หลัก (Public)
+                </button>
+            </div>
+
+            <!-- แถบเมนูจัดการ (เลื่อนซ้ายขวาได้บนมือถือ) -->
+            <div class="bg-gray-900 px-4 py-3 flex gap-2 w-full overflow-x-auto hide-scrollbar border-b border-gray-700">
+                <button onclick="switchAdminTab('matches')" id="tab-matches" class="admin-tab-btn bg-primary px-4 py-2 rounded text-sm font-medium whitespace-nowrap shadow-sm">จัดการผลการแข่งขัน</button>
+                <button onclick="switchAdminTab('medals')" id="tab-medals" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">จัดการเหรียญรางวัล</button>
+                <button onclick="switchAdminTab('athletes')" id="tab-athletes" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">ลงทะเบียนนักกีฬา</button>
+                <button onclick="switchAdminTab('schools')" id="tab-schools" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">จัดการโรงเรียน</button>
+                <button onclick="switchAdminTab('users')" id="tab-users" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">จัดการผู้ใช้งาน</button>
             </div>
 
             <div class="bg-white border border-gray-200 border-t-0 rounded-b-xl shadow-md min-h-[500px]">
