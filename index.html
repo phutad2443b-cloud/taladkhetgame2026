@@ -1418,62 +1418,79 @@
             document.getElementById('modal-manage-match').classList.add('hide');
         }
 
-        function handleSaveMatch(e) {
+        async function handleSaveMatch(e) {
             e.preventDefault();
             const id = document.getElementById('manage-match-id').value;
             const category = document.getElementById('manage-match-category').value;
 
-            let newMatch = {
+            // เตรียมข้อมูลให้ตรงกับ Column ในฐานข้อมูล Supabase (snake_case)
+            let dbMatch = {
                 date: document.getElementById('manage-match-date').value,
                 time: document.getElementById('manage-match-time').value,
-                sportType: document.getElementById('manage-match-sport-type').value,
-                sportName: document.getElementById('manage-match-sport-name').value,
+                sport_type: document.getElementById('manage-match-sport-type').value,
+                sport_name: document.getElementById('manage-match-sport-name').value,
                 round: document.getElementById('manage-match-round').value,
                 status: document.getElementById('manage-match-status').value
             };
 
             if (category === 'athletics') {
-                newMatch.athleticsType = document.getElementById('manage-match-athletics-type').value;
-                newMatch.lanes = [];
+                dbMatch.athletics_type = document.getElementById('manage-match-athletics-type').value;
+                let lanesData = [];
                 for (let i = 1; i <= 5; i++) {
-                    newMatch.lanes.push({
+                    lanesData.push({
                         schoolId: document.getElementById('manage-match-lane' + i).value,
                         rank: document.getElementById('manage-match-rank' + i).value,
                         stat: document.getElementById('manage-match-stat' + i).value
                     });
                 }
+                dbMatch.lanes = lanesData;
+                // ล้างค่าข้อมูลกีฬาทั่วไป
+                dbMatch.team_a = null; dbMatch.team_b = null; dbMatch.score_a = null; dbMatch.score_b = null;
             } else {
-                newMatch.teamA = document.getElementById('manage-match-teamA').value;
-                newMatch.teamB = document.getElementById('manage-match-teamB').value;
-                newMatch.scoreA = document.getElementById('manage-match-scoreA').value === '' ? null : parseInt(document.getElementById('manage-match-scoreA').value);
-                newMatch.scoreB = document.getElementById('manage-match-scoreB').value === '' ? null : parseInt(document.getElementById('manage-match-scoreB').value);
+                dbMatch.team_a = document.getElementById('manage-match-teamA').value || null;
+                dbMatch.team_b = document.getElementById('manage-match-teamB').value || null;
+                dbMatch.score_a = document.getElementById('manage-match-scoreA').value === '' ? null : parseInt(document.getElementById('manage-match-scoreA').value);
+                dbMatch.score_b = document.getElementById('manage-match-scoreB').value === '' ? null : parseInt(document.getElementById('manage-match-scoreB').value);
+                // ล้างค่าข้อมูลกรีฑา
+                dbMatch.athletics_type = null; dbMatch.lanes = null;
             }
 
-            if (id) {
-                // Update
-                const index = matches.findIndex(m => m.id === parseInt(id));
-                if (index !== -1) {
-                    matches[index] = { ...matches[index], ...newMatch, id: parseInt(id) };
-                    showMessage('อัปเดตข้อมูลการแข่งขันแล้ว');
+            try {
+                if (id) {
+                    // Update ลง Supabase
+                    const { error } = await supabaseClient.from('matches').update(dbMatch).eq('id', id);
+                    if (error) throw error;
+                    showMessage('อัปเดตข้อมูลการแข่งขันในฐานข้อมูลแล้ว');
+                } else {
+                    // Insert ลง Supabase
+                    const { error } = await supabaseClient.from('matches').insert([dbMatch]);
+                    if (error) throw error;
+                    showMessage('เพิ่มการแข่งขันใหม่ลงฐานข้อมูลแล้ว');
                 }
-            } else {
-                // Create
-                newMatch.id = Date.now();
-                matches.push(newMatch);
-                showMessage('เพิ่มการแข่งขันใหม่แล้ว');
-            }
 
-            renderAdminMatches();
-            renderSchedule(); // update public view too
-            closeMatchModal();
+                // รีเฟรชข้อมูลจากฐานข้อมูลและอัปเดตหน้าจอ
+                await fetchAllData(); 
+                if(currentRole === 'admin') renderAdminMatches();
+                closeMatchModal();
+            } catch (error) {
+                console.error('Error saving match:', error);
+                showMessage('เกิดข้อผิดพลาดในการบันทึกข้อมูล', 'error');
+            }
         }
 
-        function deleteMatch(id) {
-            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการแข่งขันนี้? ข้อมูลจะไม่สามารถกู้คืนได้')) {
-                matches = matches.filter(m => m.id !== id);
-                renderAdminMatches();
-                renderSchedule(); // update public view
-                showMessage('ลบรายการแข่งขันแล้ว', 'success');
+        async function deleteMatch(id) {
+            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายการแข่งขันนี้? ข้อมูลในฐานข้อมูลจะถูกลบถาวร')) {
+                try {
+                    const { error } = await supabaseClient.from('matches').delete().eq('id', id);
+                    if (error) throw error;
+                    
+                    await fetchAllData();
+                    if(currentRole === 'admin') renderAdminMatches();
+                    showMessage('ลบรายการแข่งขันจากฐานข้อมูลแล้ว', 'success');
+                } catch (error) {
+                    console.error('Error deleting match:', error);
+                    showMessage('ลบข้อมูลไม่สำเร็จ', 'error');
+                }
             }
         }
 
@@ -1485,16 +1502,16 @@
                     <tr class="bg-white border-b border-gray-100">
                         <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-800">${school.name}</td>
                         <td class="px-4 py-2 whitespace-nowrap text-center">
-                            <input type="number" id="gold-${school.id}" value="${school.gold}" min="0" class="w-16 border border-gray-300 rounded text-center py-1">
+                            <input type="number" id="gold-${school.id}" value="${school.gold}" min="0" class="w-16 border border-gray-300 rounded text-center py-1 focus:ring-primary">
                         </td>
                         <td class="px-4 py-2 whitespace-nowrap text-center">
-                            <input type="number" id="silver-${school.id}" value="${school.silver}" min="0" class="w-16 border border-gray-300 rounded text-center py-1">
+                            <input type="number" id="silver-${school.id}" value="${school.silver}" min="0" class="w-16 border border-gray-300 rounded text-center py-1 focus:ring-primary">
                         </td>
                         <td class="px-4 py-2 whitespace-nowrap text-center">
-                            <input type="number" id="bronze-${school.id}" value="${school.bronze}" min="0" class="w-16 border border-gray-300 rounded text-center py-1">
+                            <input type="number" id="bronze-${school.id}" value="${school.bronze}" min="0" class="w-16 border border-gray-300 rounded text-center py-1 focus:ring-primary">
                         </td>
                         <td class="px-4 py-2 whitespace-nowrap text-center">
-                            <button onclick="saveMedal('${school.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-semibold transition-colors">บันทึก</button>
+                            <button onclick="saveMedal('${school.id}')" class="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition-all shadow-md hover:shadow-lg">บันทึก</button>
                         </td>
                     </tr>
                 `;
@@ -1502,13 +1519,23 @@
             tbody.innerHTML = html;
         }
 
-        function saveMedal(schoolId) {
+        async function saveMedal(schoolId) {
             const school = schools.find(s => s.id === schoolId);
             if(school) {
-                school.gold = parseInt(document.getElementById(`gold-${schoolId}`).value) || 0;
-                school.silver = parseInt(document.getElementById(`silver-${schoolId}`).value) || 0;
-                school.bronze = parseInt(document.getElementById(`bronze-${schoolId}`).value) || 0;
-                showMessage(`บันทึกเหรียญรางวัลให้ ${school.short} แล้ว`);
+                const gold = parseInt(document.getElementById(`gold-${schoolId}`).value) || 0;
+                const silver = parseInt(document.getElementById(`silver-${schoolId}`).value) || 0;
+                const bronze = parseInt(document.getElementById(`bronze-${schoolId}`).value) || 0;
+                
+                try {
+                    const { error } = await supabaseClient.from('schools').update({ gold, silver, bronze }).eq('id', schoolId);
+                    if (error) throw error;
+                    
+                    await fetchAllData();
+                    showMessage(`บันทึกเหรียญรางวัลให้ ${school.short} ลงฐานข้อมูลแล้ว`);
+                } catch (error) {
+                    console.error('Error saving medals:', error);
+                    showMessage('เกิดข้อผิดพลาดในการบันทึกเหรียญ', 'error');
+                }
             }
         }
 
@@ -1535,13 +1562,13 @@
                         <td class="px-4 py-3 whitespace-nowrap text-sm">${ath.sport}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm">${ath.gender}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-center">
-                            <button onclick="editAthlete('${ath.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 px-2 py-1 rounded transition-colors" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteAthlete('${ath.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 px-2 py-1 rounded transition-colors" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="editAthlete('${ath.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded transition-colors" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteAthlete('${ath.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded transition-colors" title="ลบ"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             });
-            tbody.innerHTML = html;
+            tbody.innerHTML = html || '<tr><td colspan="5" class="text-center py-4 text-gray-500">ไม่มีข้อมูลนักกีฬา</td></tr>';
         }
 
         function resetAthleteForm() {
@@ -1562,42 +1589,56 @@
                 } else {
                     document.getElementById('ath-gender-f').checked = true;
                 }
-                document.getElementById('athlete-form-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary"></i> แก้ไขข้อมูลนักกีฬา';
+                document.getElementById('athlete-form-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-600"></i> แก้ไขข้อมูลนักกีฬา';
+                // Scroll to top of form
+                document.getElementById('admin-tab-athletes').scrollIntoView({ behavior: 'smooth' });
             }
         }
 
-        function deleteAthlete(id) {
-            if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบรายชื่อนักกีฬาท่านนี้?')) {
-                athletes = athletes.filter(a => a.id != id);
-                renderAthletesTable();
-                showMessage('ลบรายชื่อนักกีฬาเรียบร้อยแล้ว', 'success');
+        async function deleteAthlete(id) {
+            if (confirm('ยืนยันการลบรายชื่อนักกีฬาท่านนี้ออกจากฐานข้อมูลอย่างถาวร?')) {
+                try {
+                    const { error } = await supabaseClient.from('athletes').delete().eq('id', id);
+                    if (error) throw error;
+                    
+                    await fetchAllData();
+                    if(currentRole === 'admin') renderAthletesTable();
+                    showMessage('ลบรายชื่อนักกีฬาออกจากฐานข้อมูลเรียบร้อยแล้ว', 'success');
+                } catch (error) {
+                    console.error('Error deleting athlete:', error);
+                    showMessage('เกิดข้อผิดพลาด ลบข้อมูลไม่สำเร็จ', 'error');
+                }
             }
         }
 
-        function handleSaveAthlete(e) {
+        async function handleSaveAthlete(e) {
             e.preventDefault();
             const id = document.getElementById('ath-id').value;
             const name = document.getElementById('ath-name').value;
-            const schoolId = document.getElementById('ath-school').value;
+            const school_id = document.getElementById('ath-school').value;
             const sport = document.getElementById('ath-sport').value;
             const gender = document.querySelector('input[name="ath-gender"]:checked').value;
 
-            if (id) {
-                // Update
-                const index = athletes.findIndex(a => a.id == id);
-                if (index !== -1) {
-                    athletes[index] = { ...athletes[index], name, schoolId, sport, gender };
-                    showMessage('อัปเดตข้อมูลนักกีฬาเรียบร้อยแล้ว');
+            try {
+                if (id) {
+                    // Update
+                    const { error } = await supabaseClient.from('athletes').update({ name, school_id, sport, gender }).eq('id', id);
+                    if (error) throw error;
+                    showMessage('อัปเดตข้อมูลนักกีฬาลงฐานข้อมูลเรียบร้อยแล้ว');
+                } else {
+                    // Insert
+                    const { error } = await supabaseClient.from('athletes').insert([{ name, school_id, sport, gender }]);
+                    if (error) throw error;
+                    showMessage('ลงทะเบียนนักกีฬาเข้าฐานข้อมูลเรียบร้อยแล้ว');
                 }
-            } else {
-                // Create
-                const newId = Date.now();
-                athletes.push({ id: newId, name, schoolId, sport, gender });
-                showMessage('ลงทะเบียนนักกีฬาเรียบร้อยแล้ว');
+                
+                resetAthleteForm();
+                await fetchAllData();
+                if(currentRole === 'admin') renderAthletesTable();
+            } catch (error) {
+                console.error('Error saving athlete:', error);
+                showMessage('บันทึกข้อมูลไม่สำเร็จ', 'error');
             }
-            
-            resetAthleteForm();
-            renderAthletesTable();
         }
 
         // --- ADMIN SCHOOLS FUNCTIONS ---
@@ -1610,13 +1651,13 @@
                         <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-800">${school.name}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-sm">${school.short}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-center">
-                            <button onclick="editSchool('${school.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 px-2 py-1 rounded transition-colors" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
-                            <button onclick="deleteSchool('${school.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 px-2 py-1 rounded transition-colors" title="ลบ"><i class="fa-solid fa-trash"></i></button>
+                            <button onclick="editSchool('${school.id}')" class="text-blue-600 hover:text-blue-800 mx-1 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded transition-colors" title="แก้ไข"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button onclick="deleteSchool('${school.id}')" class="text-red-600 hover:text-red-800 mx-1 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded transition-colors" title="ลบ"><i class="fa-solid fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             });
-            tbody.innerHTML = html;
+            tbody.innerHTML = html || '<tr><td colspan="3" class="text-center py-4 text-gray-500">ไม่มีข้อมูลโรงเรียน</td></tr>';
         }
 
         function resetSchoolForm() {
@@ -1631,46 +1672,61 @@
                 document.getElementById('school-id-input').value = school.id;
                 document.getElementById('school-name-input').value = school.name;
                 document.getElementById('school-short-input').value = school.short;
-                document.getElementById('school-form-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary"></i> แก้ไขข้อมูลโรงเรียน';
+                document.getElementById('school-form-title').innerHTML = '<i class="fa-solid fa-pen-to-square text-blue-600"></i> แก้ไขข้อมูลโรงเรียน';
             }
         }
 
-        function deleteSchool(id) {
-            // Remove school directly and update views
-            schools = schools.filter(s => s.id !== id);
-            
-            renderAdminSchools();
-            renderAdminMedals(); // Update medals table
-            renderAthletesForm(); // Update dropdowns in athlete registration
-            
-            showMessage('ลบข้อมูลโรงเรียนเรียบร้อยแล้ว', 'success');
+        async function deleteSchool(id) {
+            if (confirm('คำเตือน: การลบโรงเรียนจะทำให้ข้อมูลนักกีฬาและผลการแข่งขันที่เชื่อมโยงกับโรงเรียนนี้หายไปด้วย ยืนยันการลบ?')) {
+                try {
+                    const { error } = await supabaseClient.from('schools').delete().eq('id', id);
+                    if (error) throw error;
+                    
+                    await fetchAllData();
+                    if(currentRole === 'admin') {
+                        renderAdminSchools();
+                        renderAdminMedals();
+                        renderAthletesForm();
+                    }
+                    showMessage('ลบข้อมูลโรงเรียนออกจากระบบแล้ว', 'success');
+                } catch (error) {
+                    console.error('Error deleting school:', error);
+                    showMessage('ลบโรงเรียนไม่สำเร็จ', 'error');
+                }
+            }
         }
 
-        function handleSaveSchool(e) {
+        async function handleSaveSchool(e) {
             e.preventDefault();
             const id = document.getElementById('school-id-input').value;
             const name = document.getElementById('school-name-input').value;
-            const short = document.getElementById('school-short-input').value;
+            const short_name = document.getElementById('school-short-input').value;
 
-            if (id) {
-                // Update existing
-                const index = schools.findIndex(s => s.id === id);
-                if(index !== -1) {
-                    schools[index].name = name;
-                    schools[index].short = short;
-                    showMessage('อัปเดตข้อมูลโรงเรียนเรียบร้อยแล้ว');
+            try {
+                if (id) {
+                    // Update
+                    const { error } = await supabaseClient.from('schools').update({ name, short_name }).eq('id', id);
+                    if (error) throw error;
+                    showMessage('อัปเดตข้อมูลโรงเรียนในฐานข้อมูลแล้ว');
+                } else {
+                    // Create
+                    const newId = 'S' + Date.now();
+                    const { error } = await supabaseClient.from('schools').insert([{ id: newId, name, short_name, gold: 0, silver: 0, bronze: 0 }]);
+                    if (error) throw error;
+                    showMessage('เพิ่มโรงเรียนใหม่เข้าสู่ฐานข้อมูลแล้ว');
                 }
-            } else {
-                // Create new
-                const newId = 'S' + (Date.now()); // Generate simple unique ID
-                schools.push({ id: newId, name, short, gold: 0, silver: 0, bronze: 0 });
-                showMessage('เพิ่มโรงเรียนใหม่เข้าสู่ระบบเรียบร้อยแล้ว');
+                
+                resetSchoolForm();
+                await fetchAllData();
+                if(currentRole === 'admin') {
+                    renderAdminSchools();
+                    renderAdminMedals(); 
+                    renderAthletesForm();
+                }
+            } catch (error) {
+                console.error('Error saving school:', error);
+                showMessage('บันทึกข้อมูลโรงเรียนไม่สำเร็จ', 'error');
             }
-            
-            resetSchoolForm();
-            renderAdminSchools();
-            renderAdminMedals(); 
-            renderAthletesForm(); 
         }
 
         // --- ADMIN USER FUNCTIONS ---
@@ -1679,20 +1735,20 @@
             let html = '';
             
             systemUsers.forEach(user => {
-                const isMainAdmin = user.id === 1;
+                const isMainAdmin = user.is_main_admin === true;
                 html += `
                     <tr class="bg-white border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td class="px-4 py-3 whitespace-nowrap font-medium text-gray-800">
                             ${user.name} 
-                            ${isMainAdmin ? '<span class="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-bold">Main Admin</span>' : ''}
+                            ${isMainAdmin ? '<span class="ml-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">Main Admin</span>' : ''}
                         </td>
                         <td class="px-4 py-3 whitespace-nowrap text-gray-600">${user.username}</td>
                         <td class="px-4 py-3 whitespace-nowrap text-center">
-                            <button onclick="openUserModal(${user.id})" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1.5 rounded transition-colors" title="แก้ไข">
+                            <button onclick="openUserModal(${user.id})" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded transition-colors" title="แก้ไข">
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </button>
                             ${!isMainAdmin ? `
-                            <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1.5 rounded transition-colors ml-1" title="ลบ">
+                            <button onclick="deleteUser(${user.id})" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded transition-colors ml-1" title="ลบ">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                             ` : ''}
@@ -1719,8 +1775,7 @@
                     document.getElementById('manage-user-username').value = u.username;
                     document.getElementById('manage-user-password').value = u.password;
                     
-                    // ป้องกันการแก้ไข Username ของ Main Admin
-                    if (id === 1) {
+                    if (u.is_main_admin) {
                         document.getElementById('manage-user-username').readOnly = true;
                         document.getElementById('manage-user-username').classList.add('bg-gray-100');
                     } else {
@@ -1741,47 +1796,57 @@
             document.getElementById('modal-manage-user').classList.add('hide');
         }
 
-        function handleSaveUser(e) {
+        async function handleSaveUser(e) {
             e.preventDefault();
             const id = document.getElementById('manage-user-id').value;
             const name = document.getElementById('manage-user-name').value;
             const username = document.getElementById('manage-user-username').value;
             const password = document.getElementById('manage-user-password').value;
 
-            // ตรวจสอบ Username ซ้ำ
             const isDuplicate = systemUsers.some(u => u.username === username && u.id !== (id ? parseInt(id) : null));
             if (isDuplicate) {
                 showMessage('ชื่อผู้ใช้งาน (Username) นี้ถูกใช้ไปแล้ว', 'error');
                 return;
             }
 
-            if (id) {
-                // Update
-                const index = systemUsers.findIndex(u => u.id === parseInt(id));
-                if (index !== -1) {
-                    systemUsers[index] = { ...systemUsers[index], name, username, password };
-                    showMessage('อัปเดตข้อมูลผู้ใช้งานเรียบร้อยแล้ว');
+            try {
+                if (id) {
+                    const { error } = await supabaseClient.from('system_users').update({ name, username, password }).eq('id', id);
+                    if (error) throw error;
+                    showMessage('อัปเดตข้อมูลผู้ใช้งานในฐานข้อมูลแล้ว');
+                } else {
+                    const { error } = await supabaseClient.from('system_users').insert([{ name, username, password }]);
+                    if (error) throw error;
+                    showMessage('เพิ่มผู้ใช้งานใหม่ลงฐานข้อมูลแล้ว');
                 }
-            } else {
-                // Create
-                const newId = Date.now();
-                systemUsers.push({ id: newId, name, username, password });
-                showMessage('เพิ่มผู้ใช้งานใหม่เรียบร้อยแล้ว');
-            }
 
-            renderAdminUsers();
-            closeUserModal();
+                await fetchAllData();
+                if(currentRole === 'admin') renderAdminUsers();
+                closeUserModal();
+            } catch (error) {
+                console.error('Error saving user:', error);
+                showMessage('บันทึกผู้ใช้งานไม่สำเร็จ', 'error');
+            }
         }
 
-        function deleteUser(id) {
-            if (id === 1) {
+        async function deleteUser(id) {
+            const user = systemUsers.find(u => u.id === id);
+            if (user && user.is_main_admin) {
                 showMessage('ไม่สามารถลบผู้ดูแลระบบหลักได้', 'error');
                 return;
             }
-            if (confirm('ยืนยันการลบผู้ใช้งานนี้?')) {
-                systemUsers = systemUsers.filter(u => u.id !== id);
-                renderAdminUsers();
-                showMessage('ลบผู้ใช้งานเรียบร้อยแล้ว', 'success');
+            if (confirm('ยืนยันการลบบัญชีผู้ใช้งานนี้ออกจากฐานข้อมูล?')) {
+                try {
+                    const { error } = await supabaseClient.from('system_users').delete().eq('id', id);
+                    if (error) throw error;
+                    
+                    await fetchAllData();
+                    if(currentRole === 'admin') renderAdminUsers();
+                    showMessage('ลบผู้ใช้งานสำเร็จ', 'success');
+                } catch (error) {
+                    console.error('Error deleting user:', error);
+                    showMessage('ลบผู้ใช้งานไม่สำเร็จ', 'error');
+                }
             }
         }
 
