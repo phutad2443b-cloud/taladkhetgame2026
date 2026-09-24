@@ -326,12 +326,22 @@
             </div>
 
             <!-- แถบเมนูจัดการ (เลื่อนซ้ายขวาได้บนมือถือ) -->
-            <div class="bg-gray-900 px-4 py-3 flex gap-2 w-full overflow-x-auto hide-scrollbar border-b border-gray-700">
-                <button onclick="switchAdminTab('matches')" id="tab-matches" class="admin-tab-btn bg-primary px-4 py-2 rounded text-sm font-medium whitespace-nowrap shadow-sm">จัดการผลการแข่งขัน</button>
-                <button onclick="switchAdminTab('medals')" id="tab-medals" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">จัดการเหรียญรางวัล</button>
-                <button onclick="switchAdminTab('athletes')" id="tab-athletes" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">ลงทะเบียนนักกีฬา</button>
-                <button onclick="switchAdminTab('schools')" id="tab-schools" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">จัดการโรงเรียน</button>
-                <button onclick="switchAdminTab('users')" id="tab-users" class="admin-tab-btn bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded text-sm font-medium whitespace-nowrap transition shadow-sm">จัดการผู้ใช้งาน</button>
+            <div class="bg-gray-800 px-4 py-4 flex gap-2 w-full overflow-x-auto hide-scrollbar border-b border-gray-700 shadow-inner">
+                <button onclick="switchAdminTab('matches')" id="tab-matches" class="admin-tab-btn bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap shadow-md transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-trophy"></i> จัดการผลการแข่งขัน
+                </button>
+                <button onclick="switchAdminTab('medals')" id="tab-medals" class="admin-tab-btn text-gray-300 bg-gray-700/50 hover:text-white hover:bg-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-medal"></i> จัดการเหรียญรางวัล
+                </button>
+                <button onclick="switchAdminTab('athletes')" id="tab-athletes" class="admin-tab-btn text-gray-300 bg-gray-700/50 hover:text-white hover:bg-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-users"></i> ลงทะเบียนนักกีฬา
+                </button>
+                <button onclick="switchAdminTab('schools')" id="tab-schools" class="admin-tab-btn text-gray-300 bg-gray-700/50 hover:text-white hover:bg-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-school"></i> จัดการโรงเรียน
+                </button>
+                <button onclick="switchAdminTab('users')" id="tab-users" class="admin-tab-btn text-gray-300 bg-gray-700/50 hover:text-white hover:bg-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-user-shield"></i> จัดการผู้ใช้งาน
+                </button>
             </div>
 
             <div class="bg-white border border-gray-200 border-t-0 rounded-b-xl shadow-md min-h-[500px]">
@@ -954,16 +964,19 @@
         function switchAdminTab(tabName) {
             // Hide all tab contents
             document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hide'));
+            
             // Reset tab styles
             document.querySelectorAll('.admin-tab-btn').forEach(el => {
-                el.classList.remove('bg-primary');
-                el.classList.add('bg-gray-700', 'hover:bg-gray-600');
+                el.classList.remove('bg-blue-600', 'text-white', 'shadow-md');
+                el.classList.add('text-gray-300', 'bg-gray-700/50', 'hover:text-white', 'hover:bg-gray-700');
             });
             
             // Show active
             document.getElementById(`admin-tab-${tabName}`).classList.remove('hide');
-            document.getElementById(`tab-${tabName}`).classList.add('bg-primary');
-            document.getElementById(`tab-${tabName}`).classList.remove('bg-gray-700', 'hover:bg-gray-600');
+            
+            const activeTab = document.getElementById(`tab-${tabName}`);
+            activeTab.classList.remove('text-gray-300', 'bg-gray-700/50', 'hover:text-white', 'hover:bg-gray-700');
+            activeTab.classList.add('bg-blue-600', 'text-white', 'shadow-md');
         }
 
         // --- RENDERING FUNCTIONS ---
